@@ -1,6 +1,6 @@
 {
-  "provider": "Claude Code默认值",
-  "base_url": "",
+  "provider": "DeepSeek",
+  "base_url": "https://api.deepseek.com/anthropic",
   "token": "",
   "auth_tokens": {
     "Claude Code默认值": "",
@@ -8,12 +8,12 @@
     "Kimi": "",
     "智谱GML": ""
   },
-  "anthropic_model": "",
-  "default_opus_model": "",
-  "default_sonnet_model": "",
-  "default_haiku_model": "",
-  "subagent_model": "",
-  "effort_level": "",
+  "anthropic_model": "deepseek-v4-pro[1m]",
+  "default_opus_model": "deepseek-v4-pro[1m]",
+  "default_sonnet_model": "deepseek-v4-pro[1m]",
+  "default_haiku_model": "deepseek-v4-flash",
+  "subagent_model": "deepseek-v4-flash",
+  "effort_level": "max",
   "project_path": "",
   "proxy": {
     "http": {

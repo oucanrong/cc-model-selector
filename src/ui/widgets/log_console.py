@@ -1,9 +1,14 @@
+# 路径: src/ui/widgets/log_console.py
+# 作用: 日志输出控件
+
 from __future__ import annotations
 
 from datetime import datetime
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMenu, QPlainTextEdit
+
+_DEFAULT_LOG_TEXT = "访问 https://github.com/oucanrong/claude-code-launcher 获取最新版本以及加入技术交流群。"
 
 
 class LogConsole(QPlainTextEdit):
@@ -16,6 +21,7 @@ class LogConsole(QPlainTextEdit):
         self.document().setMaximumBlockCount(5000)
         self._auto_scroll = True
         self.verticalScrollBar().valueChanged.connect(self._on_scroll_changed)
+        self.appendPlainText(_DEFAULT_LOG_TEXT)
 
     def append_entry(self, level: str, text: str) -> None:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -29,6 +35,7 @@ class LogConsole(QPlainTextEdit):
 
     def clear_logs(self) -> None:
         self.clear()
+        self.appendPlainText(_DEFAULT_LOG_TEXT)
 
     def _on_scroll_changed(self, value: int) -> None:
         bar = self.verticalScrollBar()
