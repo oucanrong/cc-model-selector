@@ -28,7 +28,7 @@
 1. **克隆本仓库**：
 
    ```bash
-   git clone [https://github.com/oucanrong/claude-code-launcher.git](https://github.com/oucanrong/claude-code-launcher.git)
+   git clone https://github.com/oucanrong/claude-code-launcher.git
    cd claude-code-launcher
 
 2. 安装依赖：
