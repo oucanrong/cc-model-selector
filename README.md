@@ -1,4 +1,4 @@
-# Claude Code Launcher (Claude Code 启动器)
+# Claude Code Model Selector (Claude Code 模型选择器)
 
 一款专门为 Anthropic 官方命令行 AI 助手 `claude-code` 打造的 Windows 图形化启动与配置管理工具。基于 Python 3.14 + PyQt6 构建，旨在消除 Windows 环境下繁琐的环境变量配置、多端大模型鉴权及网络代理障碍。
 
@@ -19,7 +19,7 @@
 ## 🚀 快捷使用说明
 
 ### 选项 A：直接运行打包好的可执行文件（推荐非开发者）
-1. 前往本仓库右侧的 [Releases](https://github.com/oucanrong/claude-code-launcher/releases) 页面。
+1. 前往本仓库右侧的 [Releases](https://github.com/oucanrong/cc-model-selector/releases) 页面。
 2. 下载最新版本的压缩包并解压。
 3. 双击 `cluade_code启动器.exe` 即可启动图形界面。
 
@@ -28,8 +28,8 @@
 1. **克隆本仓库**：
 
    ```bash
-   git clone https://github.com/oucanrong/claude-code-launcher.git
-   cd claude-code-launcher
+   git clone https://github.com/oucanrong/cc-model-selector.git
+   cd cc-model-selector
 
 2. 安装依赖：
 
@@ -45,6 +45,6 @@ python main.py
 
 技术交流群：
 
-![技术交流群](https://github.com/oucanrong/claude-code-launcher/blob/main/qrcode.png)
+![技术交流群](https://github.com/oucanrong/cc-model-selector/blob/main/qrcode.png)
 
 如有Linux版本的需要，也可加群。看需求，有时间再做。
