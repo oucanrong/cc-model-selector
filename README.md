@@ -42,3 +42,7 @@ pip install PyQt6 psutil Pillow PyInstaller
 ```
 python main.py
 ```
+
+技术交流群：
+
+![技术交流群](https://github.com/oucanrong/claude-code-launcher/blob/main/qrcode.png)
