@@ -46,3 +46,5 @@ python main.py
 技术交流群：
 
 ![技术交流群](https://github.com/oucanrong/claude-code-launcher/blob/main/qrcode.png)
+
+如有Linux版本的需要，也可加群。看需求，有时间再做。
