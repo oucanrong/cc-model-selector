@@ -22,7 +22,7 @@
 
 1. 前往本仓库右侧的 [Releases](https://github.com/oucanrong/cc-model-selector/releases) 页面。
 2. 下载最新版本的压缩包并解压。
-3. 双击 `cluade_code启动器.exe` 即可启动图形界面。
+3. 双击 `Claude-Code模型选择器.exe` 即可启动图形界面。
 4. 运行界面
 
 4.1 选择Claude Code默认参数
