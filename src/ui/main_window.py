@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import webbrowser
+
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QCloseEvent, QFont
 from PyQt6.QtWidgets import (
@@ -14,6 +16,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMainWindow,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QStatusBar,
     QVBoxLayout,
@@ -21,7 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.config_manager import AppConfig, ConfigManager, ProxyItem, ProviderSettings
-from src.core.constants import APP_NAME, PROVIDER_CLAUDE_DEFAULT
+from src.core.constants import APP_NAME, PROVIDER_CLAUDE_DEFAULT, PROVIDER_CLAUDE_RELAY, PROVIDER_GPT_RELAY
 from src.core.logger import setup_logger
 from src.core.process_manager import ProcessManager
 from src.ui.styles import APP_QSS
@@ -30,6 +33,9 @@ from src.ui.widgets.log_console import LogConsole
 from src.ui.widgets.parameter_group import ParameterGroup
 from src.ui.widgets.proxy_group import ProxyGroup
 from src.workers.claude_worker import ClaudeWorker
+
+# 中转 Provider 集合（需要 base_url 非空校验）
+_RELAY_PROVIDERS = {PROVIDER_CLAUDE_RELAY, PROVIDER_GPT_RELAY}
 
 # 退出确认弹窗按钮的样式（修复全局 QPushButton color:white 导致按钮文字不可见的问题）
 _CONFIRM_DIALOG_BUTTON_QSS = """
@@ -98,6 +104,76 @@ def _ask_force_quit(parent: QWidget) -> bool:
     return dialog.exec() == QDialog.DialogCode.Accepted
 
 
+def _show_info_dialog(parent: QWidget, title: str, message: str) -> None:
+    """
+    自定义信息弹窗，修复全局样式导致按钮文字白色不可见的问题。
+    """
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(title)
+    dialog.setModal(True)
+    dialog.setMinimumWidth(420)
+
+    layout = QVBoxLayout(dialog)
+    layout.setContentsMargins(24, 20, 24, 16)
+    layout.setSpacing(16)
+
+    msg = QLabel(message)
+    msg.setWordWrap(True)
+    msg.setStyleSheet("color: #222222; font-size: 12pt;")
+    layout.addWidget(msg)
+
+    btn_row = QHBoxLayout()
+    btn_row.addStretch(1)
+
+    confirm_btn = QPushButton("确认")
+    confirm_btn.setDefault(True)
+    confirm_btn.setStyleSheet(_CONFIRM_DIALOG_BUTTON_QSS)
+    confirm_btn.clicked.connect(dialog.accept)
+
+    btn_row.addWidget(confirm_btn)
+    layout.addLayout(btn_row)
+
+    dialog.exec()
+
+
+def _show_confirm_dialog(parent: QWidget, title: str, message: str) -> bool:
+    """
+    自定义确认/取消弹窗，修复全局样式导致按钮文字白色不可见的问题。
+    返回 True 表示用户点击了确认。
+    """
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(title)
+    dialog.setModal(True)
+    dialog.setMinimumWidth(460)
+
+    layout = QVBoxLayout(dialog)
+    layout.setContentsMargins(24, 20, 24, 16)
+    layout.setSpacing(16)
+
+    msg = QLabel(message)
+    msg.setWordWrap(True)
+    msg.setStyleSheet("color: #222222; font-size: 12pt;")
+    layout.addWidget(msg)
+
+    btn_row = QHBoxLayout()
+    btn_row.addStretch(1)
+
+    cancel_btn = QPushButton("取消")
+    cancel_btn.setStyleSheet(_CONFIRM_DIALOG_BUTTON_QSS)
+    cancel_btn.clicked.connect(dialog.reject)
+
+    confirm_btn = QPushButton("确认继续")
+    confirm_btn.setDefault(True)
+    confirm_btn.setStyleSheet(_CONFIRM_DIALOG_BUTTON_QSS)
+    confirm_btn.clicked.connect(dialog.accept)
+
+    btn_row.addWidget(cancel_btn)
+    btn_row.addWidget(confirm_btn)
+    layout.addLayout(btn_row)
+
+    return dialog.exec() == QDialog.DialogCode.Accepted
+
+
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -142,6 +218,19 @@ class MainWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
+        # 安装进度条（默认隐藏，安装 Claude Code 时显示）
+        self.install_progress_bar = QProgressBar()
+        self.install_progress_bar.setMinimum(0)
+        self.install_progress_bar.setMaximum(100)
+        self.install_progress_bar.setValue(0)
+        self.install_progress_bar.setTextVisible(True)
+        self.install_progress_bar.setFormat("%p% %v")
+        self.install_progress_bar.setMinimumHeight(22)
+        self.install_progress_bar.setVisible(False)
+        self.install_progress_label = QLabel("")
+        self.install_progress_label.setStyleSheet("color: #0e639c; font-size: 11pt;")
+        self.install_progress_label.setVisible(False)
+
         self.start_btn = QPushButton("启动")
         self.start_btn.setObjectName("startButton")
         self.stop_btn = QPushButton("停止")
@@ -180,6 +269,9 @@ class MainWindow(QMainWindow):
         root.addWidget(self.proxy_group)
         root.addWidget(QLabel("日志输出"))
         root.addWidget(self.log_console, 1)
+        # 进度条区域
+        root.addWidget(self.install_progress_bar)
+        root.addWidget(self.install_progress_label)
         root.addWidget(self.status_label)
         root.addLayout(button_row)
 
@@ -349,6 +441,40 @@ class MainWindow(QMainWindow):
             self._loading = False
         self._refresh_status()
 
+    def _validate_proxy_config(self) -> bool:
+        """
+        调用 ProxyGroup.validate() 校验代理配置。
+        校验失败时弹窗提示用户，返回 False；通过返回 True。
+        """
+        ok, msg = self.proxy_group.validate()
+        if not ok:
+            _show_info_dialog(self, "代理配置不完整", msg)
+        return ok
+
+    def _check_proxy_for_official(self) -> bool:
+        """
+        当 Provider 为 Claude官方接口 时，检测代理是否为空。
+        若代理为空，弹窗提示用户确认后继续启动。
+        返回 True 表示可以继续启动，False 表示用户取消。
+        """
+        proxy = self.proxy_group
+        has_proxy = (
+            (proxy.http.enabled.isChecked() and proxy.http.host.text().strip())
+            or (proxy.https.enabled.isChecked() and proxy.https.host.text().strip())
+            or (proxy.socks5.enabled.isChecked() and proxy.socks5.host.text().strip())
+        )
+        if has_proxy:
+            return True
+
+        # 代理参数为空，弹窗提示
+        msg = (
+            "如果你当前使用其它代理软件并设置了全局代理，无须在本软件中设置代理参数。\n\n"
+            "如果你当前使用其它代理软件而没有设置全局代理，使用 Claude 官方接口很可能需要你"
+            "设置 http 和 https 代理参数，否则会造成 Claude Code 运行异常或闪退，"
+            "点击确认继续启动。"
+        )
+        return _show_confirm_dialog(self, "代理提示", msg)
+
     def start_claude(self) -> None:
         self._auto_save()
 
@@ -377,19 +503,75 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "校验失败", str(exc))
             return
 
-        self.start_btn.setEnabled(False)
-        self.reset_btn.setEnabled(False)
-        self.stop_btn.setEnabled(True)
+        # ── 校验：代理配置（勾选必须填 IP + 端口） ────────────────────────────
+        if not self._validate_proxy_config():
+            return
+
+        # ── Claude官方接口：代理为空时提示确认 ───────────────────────────────
+        if self.config.provider == PROVIDER_CLAUDE_DEFAULT:
+            if not self._check_proxy_for_official():
+                return
 
         self.status_label.setText("正在启动 Claude Code ...")
         self.log_console.append_entry("SYSTEM", "正在启动 Claude Code ...")
+
+        self.start_btn.setEnabled(False)
+        self.reset_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
 
         self.worker = ClaudeWorker(self.config, self.process_manager)
         self.worker.log_signal.connect(self.log_console.append_process_output)
         self.worker.status_signal.connect(self._update_status)
         self.worker.error_signal.connect(self._on_worker_error)
         self.worker.finished_signal.connect(self._on_worker_finished)
+        # 新增信号连接
+        self.worker.npm_not_found_signal.connect(self._on_npm_not_found)
+        self.worker.install_success_signal.connect(self._on_install_success)
+        self.worker.install_progress_signal.connect(self._on_install_progress)
         self.worker.start()
+
+    def _on_install_progress(self, value: int, label: str) -> None:
+        """更新安装进度条。"""
+        if value > 0:
+            self.install_progress_bar.setVisible(True)
+            self.install_progress_bar.setValue(value)
+            if label:
+                self.install_progress_label.setText(label)
+                self.install_progress_label.setVisible(True)
+        else:
+            # value == 0 表示重置/隐藏
+            self.install_progress_bar.setVisible(False)
+            self.install_progress_bar.setValue(0)
+            self.install_progress_label.setVisible(False)
+            self.install_progress_label.setText("")
+
+    def _on_npm_not_found(self, download_url: str) -> None:
+        """npm 未安装：弹窗提示，用户确认后打开浏览器并退出。"""
+        self._unlock_ui()
+        self.install_progress_bar.setVisible(False)
+        self.install_progress_label.setVisible(False)
+
+        _show_info_dialog(
+            self,
+            "未安装 Node.js",
+            "当前系统尚未安装 Node.js，请先下载安装 Node.js，再运行本程序。\n\n"
+            "点击确认后将自动打开 Node.js 下载页面，然后退出程序。",
+        )
+        webbrowser.open(download_url, new=2)
+        QApplication.instance().quit()
+
+    def _on_install_success(self) -> None:
+        """Claude Code 安装完成：弹窗提示，用户确认后退出程序。"""
+        self._unlock_ui()
+        self.install_progress_bar.setVisible(False)
+        self.install_progress_label.setVisible(False)
+
+        _show_info_dialog(
+            self,
+            "安装成功",
+            "Claude Code 已成功安装，请退出重启本程序。",
+        )
+        QApplication.instance().quit()
 
     def _update_status(self, text: str) -> None:
         self.status_label.setText(text)
@@ -398,12 +580,16 @@ class MainWindow(QMainWindow):
     def _on_worker_error(self, text: str) -> None:
         self.status_label.setText("启动失败")
         self.log_console.append_entry("ERROR", text)
+        self.install_progress_bar.setVisible(False)
+        self.install_progress_label.setVisible(False)
         QMessageBox.critical(self, "启动失败", text)
         self._unlock_ui()
         self.process_manager.clear()
 
     def _on_worker_finished(self, return_code: int) -> None:
         self.status_label.setText(f"Claude Code 已退出，返回码：{return_code}")
+        self.install_progress_bar.setVisible(False)
+        self.install_progress_label.setVisible(False)
         self._unlock_ui()
         self.process_manager.clear()
 

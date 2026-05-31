@@ -1,17 +1,10 @@
 {
   "provider": "Claude官方接口",
   "auth_tokens": {
-    "Claude官方接口": "",
-    "DeepSeek": "",
-    "Kimi": "",
-    "智谱GML": "",
-    "Claude中转": "",
-    "GPT中转": ""
+    "Claude官方接口": ""
   },
-  "project_path": "C:/Users/oucan/Documents/vscode/claude_code启动器",
-  "recent_projects": [
-    "C:/Users/oucan/Documents/vscode/claude_code启动器"
-  ],
+  "project_path": "",
+  "recent_projects": [],
   "provider_settings": {
     "Claude官方接口": {
       "base_url": "",
@@ -21,117 +14,37 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": "",
-      "proxy": {
-        "http": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "https": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "socks5": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        }
-      }
+      "effort_level": ""
     },
     "DeepSeek": {
-      "base_url": "https://api.deepseek.com/anthropic",
+      "base_url": "",
       "token": "",
-      "anthropic_model": "deepseek-v4-pro[1m]",
-      "default_opus_model": "deepseek-v4-pro[1m]",
-      "default_sonnet_model": "deepseek-v4-pro[1m]",
-      "default_haiku_model": "deepseek-v4-flash",
-      "subagent_model": "deepseek-v4-flash",
-      "effort_level": "max",
-      "proxy": {
-        "http": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "https": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "socks5": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        }
-      }
+      "anthropic_model": "",
+      "default_opus_model": "",
+      "default_sonnet_model": "",
+      "default_haiku_model": "",
+      "subagent_model": "",
+      "effort_level": ""
     },
     "Kimi": {
-      "base_url": "https://api.moonshot.cn/anthropic",
+      "base_url": "",
       "token": "",
-      "anthropic_model": "kimi-k2.5",
-      "default_opus_model": "kimi-k2.5",
-      "default_sonnet_model": "kimi-k2.5",
-      "default_haiku_model": "kimi-k2.5",
-      "subagent_model": "kimi-k2.5",
-      "effort_level": "max",
-      "proxy": {
-        "http": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "https": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "socks5": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        }
-      }
+      "anthropic_model": "",
+      "default_opus_model": "",
+      "default_sonnet_model": "",
+      "default_haiku_model": "",
+      "subagent_model": "",
+      "effort_level": ""
     },
     "智谱GML": {
-      "base_url": "https://open.bigmodel.cn/api/anthropic",
+      "base_url": "",
       "token": "",
-      "anthropic_model": "glm-5.1",
-      "default_opus_model": "glm-5.1",
-      "default_sonnet_model": "glm-5-turbo",
-      "default_haiku_model": "glm-4.5-air",
-      "subagent_model": "glm-5-turbo",
-      "effort_level": "max",
-      "proxy": {
-        "http": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "https": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "socks5": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        }
-      }
+      "anthropic_model": "",
+      "default_opus_model": "",
+      "default_sonnet_model": "",
+      "default_haiku_model": "",
+      "subagent_model": "",
+      "effort_level": ""
     },
     "Claude中转": {
       "base_url": "",
@@ -141,27 +54,7 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": "max",
-      "proxy": {
-        "http": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "https": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "socks5": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        }
-      }
+      "effort_level": ""
     },
     "GPT中转": {
       "base_url": "",
@@ -171,27 +64,7 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": "max",
-      "proxy": {
-        "http": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "https": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        },
-        "socks5": {
-          "enabled": false,
-          "host": "",
-          "port": "",
-          "auth": ""
-        }
-      }
+      "effort_level": ""
     }
   }
 }

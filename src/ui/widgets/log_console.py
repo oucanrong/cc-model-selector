@@ -8,7 +8,7 @@ from datetime import datetime
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMenu, QPlainTextEdit
 
-_DEFAULT_LOG_TEXT = "访问 https://github.com/oucanrong/cc-model-manager 或者 https://gitee.com/zcwyou/cc-model-manager 获取最新版本以及加入技术交流群。"
+_DEFAULT_LOG_TEXT = "访问以下地址获取最新版本以及加入技术交流群：\nhttps://github.com/oucanrong/cc-model-manager\n或者\nhttps://gitee.com/zcwyou/cc-model-manager"
 
 
 class LogConsole(QPlainTextEdit):

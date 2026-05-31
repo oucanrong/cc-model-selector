@@ -1,4 +1,4 @@
-# 路径: ./src/services/claude_service.py
+# 路径: src/services/claude_service.py
 # 作用: Claude Code 启动命令、安装与上下文构建（修复 Windows 下 claude 命令误判）
 
 from __future__ import annotations
@@ -12,6 +12,9 @@ from pathlib import Path
 from src.core.config_manager import AppConfig
 from .env_builder_service import build_env
 from .validator_service import validate_project_path
+
+# 淘宝 npm 镜像源
+_NPM_REGISTRY = "https://registry.npmmirror.com"
 
 
 class ClaudeService:
@@ -146,8 +149,12 @@ class ClaudeService:
             env["PATH"] = executable_dir + (os.pathsep + current_path if current_path else "")
 
     def build_install_command(self) -> list[str]:
+        """构建安装命令，使用淘宝 npm 镜像，不弹出黑色命令行窗口。"""
+        install_args = f"npm install -g {self.install_package} --registry={_NPM_REGISTRY}"
+
         if os.name != "nt":
-            return ["npm", "install", "-g", self.install_package]
+            return ["npm", "install", "-g", self.install_package,
+                    f"--registry={_NPM_REGISTRY}"]
 
         powershell = shutil.which("powershell") or shutil.which("powershell.exe")
         if powershell:
@@ -158,22 +165,30 @@ class ClaudeService:
                 "-ExecutionPolicy",
                 "Bypass",
                 "-Command",
-                f"npm install -g {self.install_package}",
+                install_args,
             ]
 
         comspec = os.environ.get("COMSPEC") or shutil.which("cmd") or "cmd.exe"
-        return [comspec, "/d", "/c", f"npm install -g {self.install_package}"]
+        return [comspec, "/d", "/c", install_args]
 
     def install_claude_code(self) -> subprocess.CompletedProcess[str]:
+        """
+        使用淘宝源安装 Claude Code，隐藏命令行窗口（Windows）。
+        """
         command = self.build_install_command()
-        result = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
+
+        # Windows 下使用 CREATE_NO_WINDOW 标志，避免弹出黑色命令行窗口
+        kwargs: dict = {
+            "check": False,
+            "capture_output": True,
+            "text": True,
+            "encoding": "utf-8",
+            "errors": "replace",
+        }
+        if os.name == "nt":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+
+        result = subprocess.run(command, **kwargs)
         self._resolved_claude_executable = None
         return result
 

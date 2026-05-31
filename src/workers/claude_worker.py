@@ -18,6 +18,12 @@ class ClaudeWorker(QThread):
     status_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(int)
     error_signal = pyqtSignal(str)
+    # 新增：npm 未安装时通知主线程弹窗（携带下载页 URL）
+    npm_not_found_signal = pyqtSignal(str)
+    # 新增：Claude Code 安装成功后通知主线程弹窗并退出
+    install_success_signal = pyqtSignal()
+    # 新增：安装进度（0-100，-1 表示不确定进度）
+    install_progress_signal = pyqtSignal(int, str)
 
     def __init__(self, config: AppConfig, process_manager: ProcessManager) -> None:
         super().__init__()
@@ -35,9 +41,14 @@ class ClaudeWorker(QThread):
             if line:
                 self.log_signal.emit(f"[{prefix}] {line}")
 
-    def _ensure_claude_ready(self) -> None:
+    def _ensure_claude_ready(self) -> bool:
+        """
+        确保 claude 命令可用。
+        返回 True 表示可以继续启动；返回 False 表示本次流程已被中断
+        （弹窗逻辑已通过信号通知主线程处理）。
+        """
         if self.service.check_claude_installed():
-            return
+            return True
 
         self.status_signal.emit("未检测到 claude，开始检查 npm ...")
         self.log_signal.emit("[SYSTEM] 未检测到 claude，开始检查 npm ...")
@@ -45,34 +56,49 @@ class ClaudeWorker(QThread):
         if not self.service.check_npm_installed():
             self.status_signal.emit("未检测到 npm，已打开 Node.js 下载页面。")
             self.log_signal.emit("[SYSTEM] 未检测到 npm，已自动打开 Node.js 下载页面。")
-            webbrowser.open(self.service.node_download_url, new=2)
-            raise RuntimeError("未检测到 npm，请先安装 Node.js。已为你打开下载页面。")
+            # 通知主线程弹窗，主线程负责打开浏览器 + 退出
+            self.npm_not_found_signal.emit(self.service.node_download_url)
+            return False
 
-        self.status_signal.emit("检测到 npm，正在自动安装 Claude Code ...")
-        self.log_signal.emit("[SYSTEM] 检测到 npm，正在自动安装 Claude Code ...")
+        # npm 存在，开始安装 Claude Code
+        self.status_signal.emit("检测到 npm，正在通过淘宝源自动安装 Claude Code ...")
+        self.log_signal.emit("[SYSTEM] 检测到 npm，正在通过淘宝源自动安装 Claude Code ...")
+        self.install_progress_signal.emit(10, "正在安装 Claude Code，请稍候...")
 
         result = self.service.install_claude_code()
+
+        self.install_progress_signal.emit(80, "安装命令已执行，正在验证...")
+
         if result.stdout:
             self._emit_process_output("INSTALL", result.stdout)
         if result.stderr:
             self._emit_process_output("INSTALL-ERR", result.stderr)
 
         if result.returncode != 0:
+            self.install_progress_signal.emit(0, "")
             raise RuntimeError(
                 "Claude Code 自动安装失败，请检查 npm / 网络 / 权限后重试。"
             )
 
         if not self.service.check_claude_installed():
+            self.install_progress_signal.emit(0, "")
             raise RuntimeError(
-                "Claude Code 安装完成，但当前环境仍未检测到 claude 命令。请确认 npm 全局路径已加入 PATH。"
+                "Claude Code 安装完成，但当前环境仍未检测到 claude 命令。"
+                "请确认 npm 全局路径已加入 PATH，然后重新启动本程序。"
             )
 
+        self.install_progress_signal.emit(100, "安装完成！")
         self.status_signal.emit("Claude Code 安装完成。")
         self.log_signal.emit("[SYSTEM] Claude Code 安装完成。")
 
+        # 通知主线程弹窗提示安装成功，并退出程序
+        self.install_success_signal.emit()
+        return False
+
     def run(self) -> None:
         try:
-            self._ensure_claude_ready()
+            if not self._ensure_claude_ready():
+                return
 
             cwd, env, command = self.service.build_startup_context(self.config)
             self.status_signal.emit(f"正在启动 Claude Code：{cwd}")

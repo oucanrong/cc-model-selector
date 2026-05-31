@@ -1,5 +1,6 @@
 # 路径: src/ui/widgets/proxy_group.py
 # 作用: 代理设置区域控件
+# 校验：勾选某个代理时，至少要同时填入 IP 地址和端口号
 
 from __future__ import annotations
 
@@ -85,6 +86,42 @@ class ProxyGroup(QGroupBox):
             "https": self._collect_row(self.https),
             "socks5": self._collect_row(self.socks5),
         }
+
+    def validate(self) -> tuple[bool, str]:
+        """
+        校验代理配置：勾选了代理必须同时填写 IP 地址和端口号。
+        返回 (True, "") 表示校验通过；
+        返回 (False, error_message) 表示校验失败，error_message 说明具体原因。
+        """
+        checks = [
+            (self.http, "HTTP代理"),
+            (self.https, "HTTPS代理"),
+            (self.socks5, "Socks5代理"),
+        ]
+        for row, label in checks:
+            if not row.enabled.isChecked():
+                continue
+            host = row.host.text().strip()
+            port = row.port.text().strip()
+            if not host and not port:
+                return (
+                    False,
+                    f"您已勾选【{label}】，但未填写 IP 地址和端口号。\n\n"
+                    "请填写 IP 地址和端口号，或取消勾选该代理后再启动。",
+                )
+            if not host:
+                return (
+                    False,
+                    f"您已勾选【{label}】，但未填写 IP 地址。\n\n"
+                    "请填写 IP 地址后再启动，或取消勾选该代理。",
+                )
+            if not port:
+                return (
+                    False,
+                    f"您已勾选【{label}】，但未填写端口号。\n\n"
+                    "请填写端口号后再启动，或取消勾选该代理。",
+                )
+        return True, ""
 
     def _apply_row(self, row: _ProxyRow, data) -> None:
         row.enabled.setChecked(data.enabled)

@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 APP_NAME = "Claude-Code模型管理器"
@@ -53,9 +53,7 @@ class ProviderPreset:
     effort_level_options: tuple[str, ...]
     effort_level_default: str
     parameters_enabled: bool
-    # base_url 是否在鉴权弹窗中可编辑（DeepSeek/Kimi/GML/中转均可编辑）
     base_url_editable: bool = False
-    # base_url 是否在主界面中显示（仅中转 provider 不在主界面显示，从 config 静默读取）
     show_base_url_in_main: bool = False
 
 
@@ -81,7 +79,7 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         default_opus_model_default="deepseek-v4-pro[1m]",
         default_sonnet_model_default="deepseek-v4-pro[1m]",
         default_haiku_model_default="deepseek-v4-flash",
-        subagent_model_default="deepseek-v4-flash",
+        subagent_model_default="deepseek-v4-pro[1m]",
         effort_level_options=("max",),
         effort_level_default="max",
         parameters_enabled=True,
@@ -118,29 +116,28 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
     ),
     PROVIDER_CLAUDE_RELAY: ProviderPreset(
         base_url="",
-        # 中转不预设模型列表，用户自由输入；使用空 tuple 触发可编辑 QLineEdit 模式
-        model_options=(),
-        anthropic_model_default="",
-        default_opus_model_default="",
-        default_sonnet_model_default="",
-        default_haiku_model_default="",
-        subagent_model_default="",
+        model_options=("claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5-20251001"),
+        anthropic_model_default="claude-sonnet-4-6",
+        default_opus_model_default="claude-opus-4-8",
+        default_sonnet_model_default="claude-sonnet-4-6",
+        default_haiku_model_default="claude-haiku-4-5-20251001",
+        subagent_model_default="claude-sonnet-4-6",
         effort_level_options=("low", "medium", "high", "max"),
-        effort_level_default="max",
+        effort_level_default="high",
         parameters_enabled=True,
         base_url_editable=True,
         show_base_url_in_main=False,
     ),
     PROVIDER_GPT_RELAY: ProviderPreset(
         base_url="",
-        model_options=(),
-        anthropic_model_default="",
-        default_opus_model_default="",
-        default_sonnet_model_default="",
-        default_haiku_model_default="",
-        subagent_model_default="",
-        effort_level_options=("low", "medium", "high", "max"),
-        effort_level_default="max",
+        model_options=("gpt-5.5", "gpt-5.4-mini"),
+        anthropic_model_default="gpt-5.5",
+        default_opus_model_default="gpt-5.5",
+        default_sonnet_model_default="gpt-5.5",
+        default_haiku_model_default="gpt-5.4-mini",
+        subagent_model_default="gpt-5.5",
+        effort_level_options=("low", "medium", "high", "xhigh"),
+        effort_level_default="high",
         parameters_enabled=True,
         base_url_editable=True,
         show_base_url_in_main=False,

@@ -3,6 +3,7 @@
 #   - DeepSeek / Kimi / 智谱GML：base_url 可编辑，保留预设默认值；API Key 可填。
 #   - Claude中转 / GPT中转：base_url 可编辑（用户自填中转地址）；API Key 可填。
 #   - Claude官方接口：不在此弹窗中出现。
+#   - base_url 与 API Key 均可任意留空，互不绑定。
 
 from __future__ import annotations
 
@@ -43,6 +44,7 @@ class AuthSettingsDialog(QDialog):
     所有标签页均包含：
       - Base URL 输入框（可编辑；DeepSeek/Kimi/GML 预填固定默认值，中转留空由用户填写）
       - API Key  输入框（密文）
+    base_url 与 API Key 均可任意留空，互不绑定。
     """
 
     def __init__(
