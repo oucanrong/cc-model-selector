@@ -46,6 +46,9 @@
 4.5 支持第3方claude中转
 ![选择3方claude中转](https://github.com/oucanrong/cc-model-selector/blob/main/screenshot/05-claude-proxy.png)
 
+![使用3方claude中转](https://github.com/oucanrong/cc-model-selector/blob/main/screenshot/05b-claude-proxy.png)
+
+
 4.6 支持第3方GPT中转
 ![选择3方GPT中转](https://github.com/oucanrong/cc-model-selector/blob/main/screenshot/06-gpt-proxy.png)
 
