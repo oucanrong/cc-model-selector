@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-PROJECT_NAME = "Claude-Code模型选择器"
+PROJECT_NAME = "Claude-Code模型管理器"
 ENTRY_POINT = "main.py"
 
 # 代码里用到的运行时依赖 + 打包依赖
