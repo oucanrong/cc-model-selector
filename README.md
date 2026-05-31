@@ -43,6 +43,12 @@
 ![选择智谱模型](https://github.com/oucanrong/cc-model-selector/blob/main/screenshot/04-gml.png)
 ![运行智谱模型](https://github.com/oucanrong/cc-model-selector/blob/main/screenshot/04b-gml.png)
 
+4.5 支持第3方claude中转
+![选择3方claude中转](https://github.com/oucanrong/cc-model-selector/blob/main/screenshot/05-claude-proxy.png)
+
+4.6 支持第3方GPT中转
+![选择3方GPT中转](https://github.com/oucanrong/cc-model-selector/blob/main/screenshot/06-gpt-proxy.png)
+
 ### 选项 B：从源码运行（适合开发者）
 
 1. **克隆本仓库**：
