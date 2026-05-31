@@ -28,29 +28,29 @@
 
 4.1 选择Claude Code默认参数
 
-![选择Claude Code默认参数](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/01-claude.png)
+![选择Claude Code默认参数](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/01-claude.png)
 
 4.2 调用deepseek模型
 
-![选择deepseek模型](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/02-deepseek.png)
-![运行deepseek模型](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/02b-deepseek.png)
+![选择deepseek模型](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/02-deepseek.png)
+![运行deepseek模型](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/02b-deepseek.png)
 
 4.3 调用kimi模型
-![选择kimi模型](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/03-kimi.png)
-![运行kimi模型](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/03b-kimi.png)
+![选择kimi模型](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/03-kimi.png)
+![运行kimi模型](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/03b-kimi.png)
 
 4.4 调用智谱模型
-![选择智谱模型](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/04-gml.png)
-![运行智谱模型](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/04b-gml.png)
+![选择智谱模型](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/04-gml.png)
+![运行智谱模型](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/04b-gml.png)
 
 4.5 支持第3方claude中转
-![选择3方claude中转](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/05-claude-proxy.png)
+![选择3方claude中转](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/05-claude-proxy.png)
 
-![使用3方claude中转](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/05b-claude-proxy.png)
+![使用3方claude中转](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/05b-claude-proxy.png)
 
 
 4.6 支持第3方GPT中转
-![选择3方GPT中转](https://gitee.com/zcwyou/cc-model-manager/raw/main/screenshot/06-gpt-proxy.png)
+![选择3方GPT中转](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/06-gpt-proxy.png)
 
 ### 选项 B：从源码运行（适合开发者）
 
@@ -74,6 +74,6 @@ python main.py
 
 技术交流群：
 
-![技术交流群](https://gitee.com/zcwyou/cc-model-manager/raw/main/qrcode.png)
+![技术交流群](https://github.com/oucanrong/cc-model-manager/blob/main/screenshot/qrcode.png)
 
 如有Mac和Linux版本的需要，也可加群。看需求，有时间再做。
