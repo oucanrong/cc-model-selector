@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 APP_NAME = "Claude-Code模型选择器"
@@ -53,7 +53,10 @@ class ProviderPreset:
     effort_level_options: tuple[str, ...]
     effort_level_default: str
     parameters_enabled: bool
+    # base_url 是否在鉴权弹窗中可编辑（DeepSeek/Kimi/GML/中转均可编辑）
     base_url_editable: bool = False
+    # base_url 是否在主界面中显示（仅中转 provider 不在主界面显示，从 config 静默读取）
+    show_base_url_in_main: bool = False
 
 
 PROVIDER_PRESETS: dict[str, ProviderPreset] = {
@@ -69,6 +72,7 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         effort_level_default="",
         parameters_enabled=False,
         base_url_editable=False,
+        show_base_url_in_main=False,
     ),
     PROVIDER_DEEPSEEK: ProviderPreset(
         base_url="https://api.deepseek.com/anthropic",
@@ -81,7 +85,8 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         effort_level_options=("max",),
         effort_level_default="max",
         parameters_enabled=True,
-        base_url_editable=False,
+        base_url_editable=True,
+        show_base_url_in_main=False,
     ),
     PROVIDER_KIMI: ProviderPreset(
         base_url="https://api.moonshot.cn/anthropic",
@@ -94,7 +99,8 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         effort_level_options=("max",),
         effort_level_default="max",
         parameters_enabled=True,
-        base_url_editable=False,
+        base_url_editable=True,
+        show_base_url_in_main=False,
     ),
     PROVIDER_ZHIPU: ProviderPreset(
         base_url="https://open.bigmodel.cn/api/anthropic",
@@ -107,20 +113,23 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         effort_level_options=("max",),
         effort_level_default="max",
         parameters_enabled=True,
-        base_url_editable=False,
+        base_url_editable=True,
+        show_base_url_in_main=False,
     ),
     PROVIDER_CLAUDE_RELAY: ProviderPreset(
         base_url="",
+        # 中转不预设模型列表，用户自由输入；使用空 tuple 触发可编辑 QLineEdit 模式
         model_options=(),
         anthropic_model_default="",
         default_opus_model_default="",
         default_sonnet_model_default="",
         default_haiku_model_default="",
         subagent_model_default="",
-        effort_level_options=(),
-        effort_level_default="",
-        parameters_enabled=False,
+        effort_level_options=("low", "medium", "high", "max"),
+        effort_level_default="max",
+        parameters_enabled=True,
         base_url_editable=True,
+        show_base_url_in_main=False,
     ),
     PROVIDER_GPT_RELAY: ProviderPreset(
         base_url="",
@@ -130,10 +139,11 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         default_sonnet_model_default="",
         default_haiku_model_default="",
         subagent_model_default="",
-        effort_level_options=(),
-        effort_level_default="",
-        parameters_enabled=False,
+        effort_level_options=("low", "medium", "high", "max"),
+        effort_level_default="max",
+        parameters_enabled=True,
         base_url_editable=True,
+        show_base_url_in_main=False,
     ),
 }
 

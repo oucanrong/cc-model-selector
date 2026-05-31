@@ -16,12 +16,12 @@
     "Claude官方接口": {
       "base_url": "",
       "token": "",
-      "anthropic_model": "",
-      "default_opus_model": "",
-      "default_sonnet_model": "",
-      "default_haiku_model": "",
-      "subagent_model": "",
-      "effort_level": "",
+      "anthropic_model": "glm-5.1",
+      "default_opus_model": "glm-5.1",
+      "default_sonnet_model": "glm-5-turbo",
+      "default_haiku_model": "glm-4.5-air",
+      "subagent_model": "glm-5-turbo",
+      "effort_level": "max",
       "proxy": {
         "http": {
           "enabled": false,
@@ -46,12 +46,12 @@
     "DeepSeek": {
       "base_url": "https://api.deepseek.com/anthropic",
       "token": "",
-      "anthropic_model": "",
-      "default_opus_model": "",
-      "default_sonnet_model": "",
-      "default_haiku_model": "",
-      "subagent_model": "",
-      "effort_level": "",
+      "anthropic_model": "deepseek-v4-pro[1m]",
+      "default_opus_model": "deepseek-v4-pro[1m]",
+      "default_sonnet_model": "deepseek-v4-pro[1m]",
+      "default_haiku_model": "deepseek-v4-flash",
+      "subagent_model": "deepseek-v4-flash",
+      "effort_level": "max",
       "proxy": {
         "http": {
           "enabled": false,
@@ -76,12 +76,12 @@
     "Kimi": {
       "base_url": "https://api.moonshot.cn/anthropic",
       "token": "",
-      "anthropic_model": "",
-      "default_opus_model": "",
-      "default_sonnet_model": "",
-      "default_haiku_model": "",
-      "subagent_model": "",
-      "effort_level": "",
+      "anthropic_model": "kimi-k2.5",
+      "default_opus_model": "kimi-k2.5",
+      "default_sonnet_model": "kimi-k2.5",
+      "default_haiku_model": "kimi-k2.5",
+      "subagent_model": "kimi-k2.5",
+      "effort_level": "max",
       "proxy": {
         "http": {
           "enabled": false,
@@ -106,12 +106,12 @@
     "智谱GML": {
       "base_url": "https://open.bigmodel.cn/api/anthropic",
       "token": "",
-      "anthropic_model": "",
-      "default_opus_model": "",
-      "default_sonnet_model": "",
-      "default_haiku_model": "",
-      "subagent_model": "",
-      "effort_level": "",
+      "anthropic_model": "glm-5.1",
+      "default_opus_model": "glm-5.1",
+      "default_sonnet_model": "glm-5-turbo",
+      "default_haiku_model": "glm-4.5-air",
+      "subagent_model": "glm-5-turbo",
+      "effort_level": "max",
       "proxy": {
         "http": {
           "enabled": false,
@@ -141,7 +141,7 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": "",
+      "effort_level": "max",
       "proxy": {
         "http": {
           "enabled": false,
@@ -171,7 +171,7 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": "",
+      "effort_level": "max",
       "proxy": {
         "http": {
           "enabled": false,
