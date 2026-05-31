@@ -19,7 +19,7 @@
 
 ## 🚀 快捷使用说明
 
-### 选项 A：直接运行打包好的可执行文件（推荐非开发者）
+### 选项 A：直接运行打包好的可执行文件（推荐普通用户使用）
 
 1. 前往本仓库右侧的 [Releases](https://github.com/oucanrong/cc-model-manager/releases) 页面。
 2. 下载最新版本的压缩包并解压。
