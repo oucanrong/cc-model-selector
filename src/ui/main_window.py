@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.core.config_manager import AppConfig, ConfigManager, ProxyItem
+from src.core.config_manager import AppConfig, ConfigManager, ProxyItem, ProviderSettings
 from src.core.constants import APP_NAME, PROVIDER_CLAUDE_DEFAULT
 from src.core.logger import setup_logger
 from src.core.process_manager import ProcessManager
@@ -233,9 +233,22 @@ class MainWindow(QMainWindow):
         self._autosave_timer.start()
 
     def _handle_provider_change(self, provider: str) -> None:
+        # 先把当前 UI 数据存入旧 provider 的 provider_settings
+        self._sync_config_from_ui()
+
+        # 切换到新 provider
         self.config.provider = provider
-        self.config.token = self.config.auth_tokens.get(provider, "").strip()
-        self.parameter_group.set_provider(provider)
+
+        # 从 provider_settings 恢复新 provider 的参数到 UI
+        self._loading = True
+        try:
+            from src.core.config_manager import ConfigManager as _CM
+            _CM(self.config_manager.path)._sync_active_provider(self.config)
+            self.parameter_group.apply_config(self.config)
+            self.proxy_group.apply_config(self.config)
+        finally:
+            self._loading = False
+
         self._schedule_autosave()
         self._refresh_status()
 
@@ -273,12 +286,35 @@ class MainWindow(QMainWindow):
         self._refresh_status()
 
     def open_auth_settings(self) -> None:
-        dialog = AuthSettingsDialog(self.config.auth_tokens, self)
+        dialog = AuthSettingsDialog(self.config.provider_settings, self)
         if dialog.exec() != dialog.DialogCode.Accepted:
             return
 
-        self.config.auth_tokens = dialog.get_auth_tokens()
-        self.config.token = self.config.auth_tokens.get(self.config.provider, "").strip()
+        # 把鉴权弹窗中修改的 base_url + token 合并回 provider_settings
+        new_settings = dialog.get_provider_settings()
+        for provider_key, ps_new in new_settings.items():
+            existing = self.config.provider_settings.get(provider_key, ProviderSettings())
+            # 只更新 base_url 和 token，保留其他字段
+            existing.base_url = ps_new.base_url
+            existing.token = ps_new.token
+            self.config.provider_settings[provider_key] = existing
+            # 同步 auth_tokens 向后兼容字段
+            self.config.auth_tokens[provider_key] = ps_new.token
+
+        # 若当前激活的 provider 被修改，更新快捷字段
+        if self.config.provider in new_settings:
+            ps_cur = self.config.provider_settings[self.config.provider]
+            self.config.token = ps_cur.token
+            # 若 base_url 可编辑，更新 UI 中的 base_url
+            from src.core.constants import get_provider_preset
+            preset = get_provider_preset(self.config.provider)
+            if preset.base_url_editable:
+                self._loading = True
+                try:
+                    self.parameter_group.base_url_edit.setText(ps_cur.base_url)
+                finally:
+                    self._loading = False
+
         self.config_manager.save(self.config)
         self.status_bar.showMessage("鉴权设置已保存", 3000)
         self._refresh_status()
@@ -300,7 +336,11 @@ class MainWindow(QMainWindow):
         self._loading = True
         try:
             preserved_tokens = dict(self.config.auth_tokens)
-            self.config = AppConfig(auth_tokens=preserved_tokens)
+            preserved_provider_settings = dict(self.config.provider_settings)
+            self.config = AppConfig(
+                auth_tokens=preserved_tokens,
+                provider_settings=preserved_provider_settings,
+            )
             self.parameter_group.apply_config(self.config)
             self.proxy_group.apply_config(self.config)
             self.log_console.clear_logs()
@@ -363,28 +403,13 @@ class MainWindow(QMainWindow):
         self.process_manager.clear()
 
     def _on_worker_finished(self, return_code: int) -> None:
-        self.log_console.append_entry("SYSTEM", f"Claude Code 返回码：{return_code}")
+        self.status_label.setText(f"Claude Code 已退出，返回码：{return_code}")
         self._unlock_ui()
         self.process_manager.clear()
-        self.status_label.setText(f"已退出，返回码：{return_code}")
 
     def stop_claude(self) -> None:
-        if not self.process_manager.running:
-            QMessageBox.information(self, "提示", "当前没有运行中的 Claude Code。")
-            return
-
-        self.log_console.append_entry("SYSTEM", "正在尝试温和停止 Claude Code ...")
         if self.worker:
             self.worker.request_soft_stop()
-
-        if self.process_manager.running:
-            self.log_console.append_entry("WARNING", "温和停止失败，正在强制结束进程 ...")
-            if self.worker:
-                self.worker.request_hard_stop()
-
-        self._unlock_ui()
-        self.process_manager.clear()
-        self.status_label.setText("已停止")
 
     def _unlock_ui(self) -> None:
         self.start_btn.setEnabled(True)

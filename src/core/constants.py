@@ -13,7 +13,7 @@ CONFIG_PATH = ROOT_DIR / "config.json"
 LOG_DIR = ROOT_DIR / "logs"
 LOG_FILE = LOG_DIR / "app.log"
 
-DEFAULT_PROVIDER = "Claude Code默认值"
+DEFAULT_PROVIDER = "Claude官方接口"
 DEFAULT_BASE_URL = ""
 DEFAULT_MODEL = ""
 DEFAULT_OPUS_MODEL = ""
@@ -24,16 +24,20 @@ DEFAULT_EFFORT_LEVEL = "max"
 DEFAULT_MAX_LOG_LINES = 5000
 DEFAULT_RECENT_PROJECTS = 10
 
-PROVIDER_CLAUDE_DEFAULT = "Claude Code默认值"
+PROVIDER_CLAUDE_DEFAULT = "Claude官方接口"
 PROVIDER_DEEPSEEK = "DeepSeek"
 PROVIDER_KIMI = "Kimi"
 PROVIDER_ZHIPU = "智谱GML"
+PROVIDER_CLAUDE_RELAY = "Claude中转"
+PROVIDER_GPT_RELAY = "GPT中转"
 
 PROVIDER_OPTIONS = [
     PROVIDER_CLAUDE_DEFAULT,
     PROVIDER_DEEPSEEK,
     PROVIDER_KIMI,
     PROVIDER_ZHIPU,
+    PROVIDER_CLAUDE_RELAY,
+    PROVIDER_GPT_RELAY,
 ]
 
 
@@ -104,6 +108,32 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         effort_level_default="max",
         parameters_enabled=True,
         base_url_editable=False,
+    ),
+    PROVIDER_CLAUDE_RELAY: ProviderPreset(
+        base_url="",
+        model_options=(),
+        anthropic_model_default="",
+        default_opus_model_default="",
+        default_sonnet_model_default="",
+        default_haiku_model_default="",
+        subagent_model_default="",
+        effort_level_options=(),
+        effort_level_default="",
+        parameters_enabled=False,
+        base_url_editable=True,
+    ),
+    PROVIDER_GPT_RELAY: ProviderPreset(
+        base_url="",
+        model_options=(),
+        anthropic_model_default="",
+        default_opus_model_default="",
+        default_sonnet_model_default="",
+        default_haiku_model_default="",
+        subagent_model_default="",
+        effort_level_options=(),
+        effort_level_default="",
+        parameters_enabled=False,
+        base_url_editable=True,
     ),
 }
 

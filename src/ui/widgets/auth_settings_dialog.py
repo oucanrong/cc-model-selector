@@ -1,12 +1,13 @@
 # 路径: src/ui/widgets/auth_settings_dialog.py
-# 作用: 鉴权设置弹窗
+# 作用: 鉴权设置弹窗（含 base_url 输入，支持 Claude中转 / GPT中转）
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QDialog,
+    QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -19,31 +20,51 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.constants import (
-    PROVIDER_CLAUDE_DEFAULT,
+    PROVIDER_CLAUDE_RELAY,
     PROVIDER_DEEPSEEK,
+    PROVIDER_GPT_RELAY,
     PROVIDER_KIMI,
     PROVIDER_ZHIPU,
+    get_provider_preset,
 )
+from src.core.config_manager import ProviderSettings
 
 
 class AuthSettingsDialog(QDialog):
-    def __init__(self, auth_tokens: dict[str, str], parent: QWidget | None = None) -> None:
+    """
+    鉴权设置弹窗。
+
+    接收并返回 provider_settings（dict[str, ProviderSettings]），
+    其中包含每个 provider 的 base_url 与 token。
+    """
+
+    def __init__(
+        self,
+        provider_settings: dict[str, ProviderSettings],
+        # 向后兼容：旧版传入 auth_tokens: dict[str, str]，自动转换
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("鉴权设置")
         self.setModal(True)
-        self.resize(700, 400)
+        self.resize(760, 460)
         self.setMinimumSize(700, 400)
 
         font = QFont("Microsoft YaHei")
         font.setPointSize(12)
         self.setFont(font)
 
-        self._token_edits: dict[str, QLineEdit] = {}
+        # {provider_key: (base_url_edit, token_edit)}
+        self._fields: dict[str, tuple[QLineEdit | None, QLineEdit]] = {}
 
-        self._build_ui(auth_tokens)
+        self._build_ui(provider_settings)
         self._apply_styles()
 
-    def _build_ui(self, auth_tokens: dict[str, str]) -> None:
+    # ------------------------------------------------------------------
+    # 构建 UI
+    # ------------------------------------------------------------------
+
+    def _build_ui(self, provider_settings: dict[str, ProviderSettings]) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(18, 18, 18, 18)
         root.setSpacing(14)
@@ -65,19 +86,23 @@ class AuthSettingsDialog(QDialog):
         self.stack = QStackedWidget()
         self.stack.setObjectName("authPageStack")
 
-        tabs: list[tuple[str, str]] = [
-            ("Claude", PROVIDER_CLAUDE_DEFAULT),
-            ("DeepSeek", PROVIDER_DEEPSEEK),
-            ("Kimi", PROVIDER_KIMI),
-            ("GML", PROVIDER_ZHIPU),
+        # 标签页列表：(显示名, provider_key, 是否有可编辑 base_url)
+        # Claude官方接口 不再出现在鉴权设置中（无需 API 鉴权）
+        tabs: list[tuple[str, str, bool]] = [
+            ("DeepSeek", PROVIDER_DEEPSEEK, False),
+            ("Kimi",     PROVIDER_KIMI,     False),
+            ("GML",      PROVIDER_ZHIPU,    False),
+            ("Claude中转", PROVIDER_CLAUDE_RELAY, True),
+            ("GPT中转",   PROVIDER_GPT_RELAY,    True),
         ]
 
-        for title_text, provider_key in tabs:
-            item = QListWidgetItem(title_text)
+        for tab_label, provider_key, has_base_url in tabs:
+            item = QListWidgetItem(tab_label)
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            item.setSizeHint(item.sizeHint().expandedTo(self._tab_item_size_hint()))
+            item.setSizeHint(QSize(120, 44))
             self.tab_list.addItem(item)
-            self.stack.addWidget(self._make_page(title_text, provider_key, auth_tokens))
+            ps = provider_settings.get(provider_key, ProviderSettings())
+            self.stack.addWidget(self._make_page(provider_key, ps, has_base_url))
 
         self.tab_list.currentRowChanged.connect(self.stack.setCurrentIndex)
         self.tab_list.setCurrentRow(0)
@@ -104,31 +129,76 @@ class AuthSettingsDialog(QDialog):
         button_row.addWidget(self.confirm_btn)
         root.addLayout(button_row)
 
-    @staticmethod
-    def _tab_item_size_hint():
-        from PyQt6.QtCore import QSize
-
-        return QSize(120, 44)
-
-    def _make_page(self, title: str, provider_key: str, auth_tokens: dict[str, str]) -> QWidget:
+    def _make_page(
+        self,
+        provider_key: str,
+        ps: ProviderSettings,
+        has_base_url: bool,
+    ) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        hint = QLabel(f"{title} API Token 鉴权")
-        hint.setWordWrap(True)
-        layout.addWidget(hint)
+        form = QFormLayout()
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(10)
 
-        edit = QLineEdit()
-        edit.setEchoMode(QLineEdit.EchoMode.Password)
-        edit.setPlaceholderText("可留空")
-        edit.setText(auth_tokens.get(provider_key, ""))
-        layout.addWidget(edit)
+        base_url_edit: QLineEdit | None = None
 
-        self._token_edits[provider_key] = edit
+        if has_base_url:
+            # 需要用户手动填写 base_url
+            base_url_edit = QLineEdit()
+            base_url_edit.setMinimumHeight(30)
+            base_url_edit.setPlaceholderText("https://your-relay-host/v1/...")
+            base_url_edit.setText(ps.base_url.strip())
+            form.addRow("Base URL", base_url_edit)
+        else:
+            # 固定 base_url，只读展示
+            preset = get_provider_preset(provider_key)
+            if preset.base_url:
+                url_label = QLabel(preset.base_url)
+                url_label.setStyleSheet("color: #555555; font-size: 11pt;")
+                form.addRow("Base URL", url_label)
+
+        token_edit = QLineEdit()
+        token_edit.setMinimumHeight(30)
+        token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        token_edit.setPlaceholderText("可留空")
+        token_edit.setText(ps.token.strip())
+        form.addRow("API Key", token_edit)
+
+        layout.addLayout(form)
         layout.addStretch(1)
+
+        self._fields[provider_key] = (base_url_edit, token_edit)
         return page
+
+    # ------------------------------------------------------------------
+    # 结果获取
+    # ------------------------------------------------------------------
+
+    def get_provider_settings(self) -> dict[str, ProviderSettings]:
+        """返回所有已编辑的 ProviderSettings（仅鉴权弹窗覆盖的 providers）。"""
+        result: dict[str, ProviderSettings] = {}
+        for provider_key, (base_url_edit, token_edit) in self._fields.items():
+            preset = get_provider_preset(provider_key)
+            base_url = base_url_edit.text().strip() if base_url_edit is not None else preset.base_url
+            token = token_edit.text().strip()
+            result[provider_key] = ProviderSettings(
+                base_url=base_url,
+                token=token,
+            )
+        return result
+
+    def get_auth_tokens(self) -> dict[str, str]:
+        """向后兼容：仅返回 token 字典。"""
+        return {k: v.token for k, v in self.get_provider_settings().items()}
+
+    # ------------------------------------------------------------------
+    # 样式
+    # ------------------------------------------------------------------
 
     def _apply_styles(self) -> None:
         self.setStyleSheet(
@@ -186,11 +256,3 @@ class AuthSettingsDialog(QDialog):
             }
             """
         )
-
-    def get_auth_tokens(self) -> dict[str, str]:
-        return {
-            PROVIDER_CLAUDE_DEFAULT: self._token_edits[PROVIDER_CLAUDE_DEFAULT].text().strip(),
-            PROVIDER_DEEPSEEK: self._token_edits[PROVIDER_DEEPSEEK].text().strip(),
-            PROVIDER_KIMI: self._token_edits[PROVIDER_KIMI].text().strip(),
-            PROVIDER_ZHIPU: self._token_edits[PROVIDER_ZHIPU].text().strip(),
-        }

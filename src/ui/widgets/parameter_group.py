@@ -1,5 +1,5 @@
 # 路径: src/ui/widgets/parameter_group.py
-# 作用: 启动参数区域控件
+# 作用: 启动参数区域控件（支持 Claude中转 / GPT中转 可编辑 base_url）
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QGridLayout,
     QGroupBox,
+    QLabel,
     QLineEdit,
     QPushButton,
     QSizePolicy,
@@ -32,6 +33,7 @@ class ParameterGroup(QGroupBox):
 
         self.base_url_edit = QLineEdit()
         self.base_url_edit.setVisible(False)
+        self.base_url_edit.setPlaceholderText("Base URL（中转地址）")
 
         self.model_main = QComboBox()
         self.model_opus = QComboBox()
@@ -65,45 +67,55 @@ class ParameterGroup(QGroupBox):
         self._build_ui()
         self.set_provider(self.provider_combo.currentText())
 
+    # ------------------------------------------------------------------
+
     def _build_ui(self) -> None:
-        layout = QGridLayout()
-        layout.setHorizontalSpacing(10)
-        layout.setVerticalSpacing(10)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setColumnStretch(1, 1)
+        self._layout = QGridLayout()
+        self._layout.setHorizontalSpacing(10)
+        self._layout.setVerticalSpacing(10)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setColumnStretch(1, 1)
 
-        layout.addWidget(self._make_label("Provider"), 0, 0)
-        layout.addWidget(self.provider_combo, 0, 1)
+        # 行 0：Provider
+        self._layout.addWidget(self._make_label("Provider"), 0, 0)
+        self._layout.addWidget(self.provider_combo, 0, 1)
 
-        layout.addWidget(self._make_label("ANTHROPIC_MODEL"), 1, 0)
-        layout.addWidget(self.model_main, 1, 1)
+        # 行 1：ANTHROPIC_BASE_URL（中转 provider 可见，其余隐藏）
+        self._base_url_label = self._make_label("ANTHROPIC_BASE_URL")
+        self._layout.addWidget(self._base_url_label, 1, 0)
+        self._layout.addWidget(self.base_url_edit, 1, 1)
 
-        layout.addWidget(self._make_label("ANTHROPIC_DEFAULT_OPUS_MODEL"), 2, 0)
-        layout.addWidget(self.model_opus, 2, 1)
+        # 行 2~7：模型 & effort（非 Claude官方接口 时启用）
+        self._layout.addWidget(self._make_label("ANTHROPIC_MODEL"), 2, 0)
+        self._layout.addWidget(self.model_main, 2, 1)
 
-        layout.addWidget(self._make_label("ANTHROPIC_DEFAULT_SONNET_MODEL"), 3, 0)
-        layout.addWidget(self.model_sonnet, 3, 1)
+        self._layout.addWidget(self._make_label("ANTHROPIC_DEFAULT_OPUS_MODEL"), 3, 0)
+        self._layout.addWidget(self.model_opus, 3, 1)
 
-        layout.addWidget(self._make_label("ANTHROPIC_DEFAULT_HAIKU_MODEL"), 4, 0)
-        layout.addWidget(self.model_haiku, 4, 1)
+        self._layout.addWidget(self._make_label("ANTHROPIC_DEFAULT_SONNET_MODEL"), 4, 0)
+        self._layout.addWidget(self.model_sonnet, 4, 1)
 
-        layout.addWidget(self._make_label("CLAUDE_CODE_SUBAGENT_MODEL"), 5, 0)
-        layout.addWidget(self.model_subagent, 5, 1)
+        self._layout.addWidget(self._make_label("ANTHROPIC_DEFAULT_HAIKU_MODEL"), 5, 0)
+        self._layout.addWidget(self.model_haiku, 5, 1)
 
-        layout.addWidget(self._make_label("CLAUDE_CODE_EFFORT_LEVEL"), 6, 0)
-        layout.addWidget(self.effort_level, 6, 1)
+        self._layout.addWidget(self._make_label("CLAUDE_CODE_SUBAGENT_MODEL"), 6, 0)
+        self._layout.addWidget(self.model_subagent, 6, 1)
 
-        layout.addWidget(self.pick_btn, 7, 0)
-        layout.addWidget(self.project_path_edit, 7, 1)
+        self._layout.addWidget(self._make_label("CLAUDE_CODE_EFFORT_LEVEL"), 7, 0)
+        self._layout.addWidget(self.effort_level, 7, 1)
 
-        self.setLayout(layout)
+        # 行 8：工作目录
+        self._layout.addWidget(self.pick_btn, 8, 0)
+        self._layout.addWidget(self.project_path_edit, 8, 1)
+
+        self.setLayout(self._layout)
 
     @staticmethod
-    def _make_label(text: str) -> QWidget:
-        from PyQt6.QtWidgets import QLabel
-
+    def _make_label(text: str) -> QLabel:
         label = QLabel(text)
         return label
+
+    # ------------------------------------------------------------------
 
     def _set_combo_items(self, combo: QComboBox, items: tuple[str, ...], default_text: str) -> None:
         blocker = QSignalBlocker(combo)
@@ -118,12 +130,23 @@ class ParameterGroup(QGroupBox):
 
     def set_provider(self, provider: str) -> None:
         preset = get_provider_preset(provider)
-        is_enabled = preset.parameters_enabled
+        is_param_enabled = preset.parameters_enabled
+        is_url_editable = preset.base_url_editable
 
-        blocker = QSignalBlocker(self.base_url_edit)
-        self.base_url_edit.setText(preset.base_url if is_enabled else "")
-        del blocker
+        # base_url 行：中转 provider 显示可编辑输入框
+        show_base_url = is_url_editable
+        self._base_url_label.setVisible(show_base_url)
+        self.base_url_edit.setVisible(show_base_url)
+        if show_base_url:
+            self.base_url_edit.setReadOnly(False)
+            self.base_url_edit.setEnabled(True)
+        else:
+            # 固定地址 provider：base_url 由 preset 决定，不在主界面显示
+            blocker = QSignalBlocker(self.base_url_edit)
+            self.base_url_edit.setText(preset.base_url if is_param_enabled else "")
+            del blocker
 
+        # 模型 & effort 控件
         for combo in (
             self.model_main,
             self.model_opus,
@@ -132,43 +155,31 @@ class ParameterGroup(QGroupBox):
             self.model_subagent,
             self.effort_level,
         ):
-            combo.setEnabled(is_enabled)
+            combo.setEnabled(is_param_enabled)
 
-        if is_enabled:
+        if is_param_enabled:
             self._set_combo_items(self.model_main, preset.model_options, preset.anthropic_model_default)
             self._set_combo_items(self.model_opus, preset.model_options, preset.default_opus_model_default)
-            self._set_combo_items(
-                self.model_sonnet,
-                preset.model_options,
-                preset.default_sonnet_model_default,
-            )
+            self._set_combo_items(self.model_sonnet, preset.model_options, preset.default_sonnet_model_default)
             self._set_combo_items(self.model_haiku, preset.model_options, preset.default_haiku_model_default)
-            self._set_combo_items(
-                self.model_subagent,
-                preset.model_options,
-                preset.subagent_model_default,
-            )
-            self._set_combo_items(
-                self.effort_level,
-                preset.effort_level_options,
-                preset.effort_level_default,
-            )
+            self._set_combo_items(self.model_subagent, preset.model_options, preset.subagent_model_default)
+            self._set_combo_items(self.effort_level, preset.effort_level_options, preset.effort_level_default)
         else:
-            blocker_main = QSignalBlocker(self.model_main)
-            blocker_opus = QSignalBlocker(self.model_opus)
-            blocker_sonnet = QSignalBlocker(self.model_sonnet)
-            blocker_haiku = QSignalBlocker(self.model_haiku)
-            blocker_subagent = QSignalBlocker(self.model_subagent)
-            blocker_effort = QSignalBlocker(self.effort_level)
-
+            blockers = [
+                QSignalBlocker(self.model_main),
+                QSignalBlocker(self.model_opus),
+                QSignalBlocker(self.model_sonnet),
+                QSignalBlocker(self.model_haiku),
+                QSignalBlocker(self.model_subagent),
+                QSignalBlocker(self.effort_level),
+            ]
             self.model_main.clear()
             self.model_opus.clear()
             self.model_sonnet.clear()
             self.model_haiku.clear()
             self.model_subagent.clear()
             self.effort_level.clear()
-
-            del blocker_main, blocker_opus, blocker_sonnet, blocker_haiku, blocker_subagent, blocker_effort
+            del blockers
 
     def apply_config(self, config: AppConfig) -> None:
         provider = config.provider if config.provider in PROVIDER_OPTIONS else DEFAULT_PROVIDER
@@ -201,6 +212,9 @@ class ParameterGroup(QGroupBox):
                 config.subagent_model.strip() or preset.subagent_model_default
             )
             self.effort_level.setCurrentText(config.effort_level.strip() or preset.effort_level_default)
+        elif preset.base_url_editable:
+            # 中转 provider：仅恢复 base_url
+            self.base_url_edit.setText(config.base_url.strip())
         else:
             self.base_url_edit.clear()
 
