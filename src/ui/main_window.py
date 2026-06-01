@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.core.config_manager import AppConfig, ConfigManager, ProxyItem, ProviderSettings
+from src.core.config_manager import AppConfig, ConfigManager, ProxyConfig, ProxyItem, ProviderSettings
 from src.core.constants import APP_NAME, PROVIDER_CLAUDE_DEFAULT, PROVIDER_CLAUDE_RELAY, PROVIDER_GPT_RELAY
 from src.core.logger import setup_logger
 from src.core.process_manager import ProcessManager
@@ -427,12 +427,34 @@ class MainWindow(QMainWindow):
             return
         self._loading = True
         try:
+            # 保留当前 provider，重置后不跳转
+            preserved_provider = self.config.provider
+            # 保留鉴权信息（auth_tokens + provider_settings 中的 base_url/token）
             preserved_tokens = dict(self.config.auth_tokens)
-            preserved_provider_settings = dict(self.config.provider_settings)
+            preserved_provider_settings: dict[str, ProviderSettings] = {}
+            for pk, ps in self.config.provider_settings.items():
+                preserved_provider_settings[pk] = ProviderSettings(
+                    base_url=ps.base_url,
+                    token=ps.token,
+                    # 其余参数重置为空，让 _sync_active_provider 使用预设默认值
+                    anthropic_model="",
+                    default_opus_model="",
+                    default_sonnet_model="",
+                    default_haiku_model="",
+                    subagent_model="",
+                    effort_level="",
+                    proxy=ProxyConfig(),
+                )
+
             self.config = AppConfig(
+                provider=preserved_provider,
                 auth_tokens=preserved_tokens,
                 provider_settings=preserved_provider_settings,
+                # project_path 重置为空
+                project_path="",
             )
+            # 同步当前 provider 的 top-level 字段（用预设默认值填充空字段，恢复保留的 base_url/token）
+            self.config_manager._sync_active_provider(self.config)
             self.parameter_group.apply_config(self.config)
             self.proxy_group.apply_config(self.config)
             self.log_console.clear_logs()

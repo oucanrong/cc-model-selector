@@ -21,7 +21,7 @@
 
 ### 选项 A：直接运行打包好的可执行文件（推荐普通用户使用）
 
-1. 前往本仓库右侧的 [Releases](https://github.com/oucanrong/cc-model-manager/releases) 页面。
+1. 前往本仓库右侧的 [发行版](https://gitee.com/zcwyou/cc-model-manager/releases/) 页面。
 2. 下载最新版本的压缩包并解压。
 3. 双击 `Claude-Code模型管理器.exe` 即可启动图形界面。
 4. 运行界面
@@ -57,7 +57,7 @@
 1. **克隆本仓库**：
 
    ```bash
-   git clone https://github.com/oucanrong/cc-model-manager.git
+   git clone https://gitee.com/zcwyou/cc-model-manager.git
    cd cc-model-manager
 
 2. 安装依赖：
