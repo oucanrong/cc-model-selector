@@ -1,14 +1,16 @@
 # 路径: src/ui/widgets/parameter_group.py
 # 作用: 启动参数区域控件
 #   - DeepSeek / Kimi / 智谱GML：base_url 不在主界面显示（在鉴权弹窗编辑），
-#     模型 & effort 下拉框可用。
+#     模型下拉框可用。
+#   - Kimi：不显示 CLAUDE_CODE_EFFORT_LEVEL，显示 ENABLE_TOOL_SEARCH（下拉框，只有 false）。
+#   - 智谱GML：不显示 CLAUDE_CODE_EFFORT_LEVEL，显示 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC（下拉框，只有 1）。
 #   - Claude中转 / GPT中转：base_url 同样不在主界面显示（从 config 静默读取），
 #     模型 & effort 使用下拉框（预设选项列表），与固定 provider 保持一致。
 #   - Claude官方接口：所有参数行均禁用。
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QSignalBlocker
+from PyQt6.QtCore import Qt, QSignalBlocker
 from PyQt6.QtWidgets import (
     QComboBox,
     QGridLayout,
@@ -26,6 +28,8 @@ from src.core.constants import (
     PROVIDER_OPTIONS,
     PROVIDER_CLAUDE_RELAY,
     PROVIDER_GPT_RELAY,
+    PROVIDER_KIMI,
+    PROVIDER_ZHIPU,
     get_provider_preset,
 )
 
@@ -80,6 +84,21 @@ class ParameterGroup(QGroupBox):
         ):
             widget.setMinimumHeight(26)
             widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        # Kimi 专用：ENABLE_TOOL_SEARCH 下拉框（只有 false 一个选项）
+        self.enable_tool_search = QComboBox()
+        self.enable_tool_search.setMinimumHeight(26)
+        self.enable_tool_search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        # GML5 专用：CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 下拉框（只有 1 一个选项）
+        self.disable_nonessential_traffic = QComboBox()
+        self.disable_nonessential_traffic.setMinimumHeight(26)
+        self.disable_nonessential_traffic.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        # GML5 专用：API_TIMEOUT_MS 文本输入框
+        self.api_timeout_ms = QLineEdit()
+        self.api_timeout_ms.setMinimumHeight(26)
+        self.api_timeout_ms.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         self.project_path_edit = QLineEdit()
         self.project_path_edit.setMinimumHeight(26)
@@ -137,9 +156,24 @@ class ParameterGroup(QGroupBox):
         self._layout.addWidget(self._label_effort, 6, 0)
         self._layout.addWidget(self.effort_level, 6, 1)
 
-        # 行 7：工作目录
-        self._layout.addWidget(self.pick_btn, 7, 0)
-        self._layout.addWidget(self.project_path_edit, 7, 1)
+        # 行 7：ENABLE_TOOL_SEARCH（Kimi 专用）
+        self._label_enable_tool_search = self._make_label("ENABLE_TOOL_SEARCH")
+        self._layout.addWidget(self._label_enable_tool_search, 7, 0)
+        self._layout.addWidget(self.enable_tool_search, 7, 1)
+
+        # 行 8：CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC（GML5 专用）
+        self._label_disable_nonessential_traffic = self._make_label("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC")
+        self._layout.addWidget(self._label_disable_nonessential_traffic, 8, 0)
+        self._layout.addWidget(self.disable_nonessential_traffic, 8, 1)
+
+        # 行 9：API_TIMEOUT_MS（GML5 专用）
+        self._label_api_timeout_ms = self._make_label("API_TIMEOUT_MS")
+        self._layout.addWidget(self._label_api_timeout_ms, 9, 0)
+        self._layout.addWidget(self.api_timeout_ms, 9, 1)
+
+        # 行 10：工作目录
+        self._layout.addWidget(self.pick_btn, 10, 0)
+        self._layout.addWidget(self.project_path_edit, 10, 1)
 
         self.setLayout(self._layout)
 
@@ -170,6 +204,9 @@ class ParameterGroup(QGroupBox):
             self._label_model_haiku, self.model_haiku,
             self._label_model_subagent, self.model_subagent,
             self._label_effort, self.effort_level,
+            self._label_enable_tool_search, self.enable_tool_search,
+            self._label_disable_nonessential_traffic, self.disable_nonessential_traffic,
+            self._label_api_timeout_ms, self.api_timeout_ms,
         ):
             w.setVisible(False)
 
@@ -182,6 +219,9 @@ class ParameterGroup(QGroupBox):
             self._label_model_haiku, self.model_haiku,
             self._label_model_subagent, self.model_subagent,
             self._label_effort, self.effort_level,
+            self._label_enable_tool_search, self.enable_tool_search,
+            self._label_disable_nonessential_traffic, self.disable_nonessential_traffic,
+            self._label_api_timeout_ms, self.api_timeout_ms,
         ):
             w.setVisible(True)
 
@@ -199,7 +239,7 @@ class ParameterGroup(QGroupBox):
             self._hide_all_model_rows()
             return
 
-        # 所有有参数的 provider（含中转）：均使用下拉框模式
+        # 所有有参数的 provider（含中转）：先全部显示
         self._show_all_model_rows()
 
         for combo in (
@@ -214,6 +254,40 @@ class ParameterGroup(QGroupBox):
         self._set_combo_items(self.model_haiku, preset.model_options, preset.default_haiku_model_default)
         self._set_combo_items(self.model_subagent, preset.model_options, preset.subagent_model_default)
         self._set_combo_items(self.effort_level, preset.effort_level_options, preset.effort_level_default)
+
+        # 根据预设隐藏/显示 effort_level
+        if preset.hide_effort_level:
+            self._label_effort.setVisible(False)
+            self.effort_level.setVisible(False)
+        else:
+            self._label_effort.setVisible(True)
+            self.effort_level.setVisible(True)
+
+        # 根据预设隐藏/显示 ENABLE_TOOL_SEARCH（Kimi 专用，下拉框）
+        if preset.show_enable_tool_search:
+            self._label_enable_tool_search.setVisible(True)
+            self.enable_tool_search.setVisible(True)
+            self._set_combo_items(self.enable_tool_search, preset.enable_tool_search_options, preset.enable_tool_search_default)
+        else:
+            self._label_enable_tool_search.setVisible(False)
+            self.enable_tool_search.setVisible(False)
+
+        # 根据预设隐藏/显示 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC（GML5 专用，下拉框）
+        if preset.show_disable_nonessential_traffic:
+            self._label_disable_nonessential_traffic.setVisible(True)
+            self.disable_nonessential_traffic.setVisible(True)
+            self._set_combo_items(self.disable_nonessential_traffic, preset.disable_nonessential_traffic_options, preset.disable_nonessential_traffic_default)
+        else:
+            self._label_disable_nonessential_traffic.setVisible(False)
+            self.disable_nonessential_traffic.setVisible(False)
+
+        # 根据预设隐藏/显示 API_TIMEOUT_MS（GML5 专用，文本输入框）
+        if preset.show_api_timeout_ms:
+            self._label_api_timeout_ms.setVisible(True)
+            self.api_timeout_ms.setVisible(True)
+        else:
+            self._label_api_timeout_ms.setVisible(False)
+            self.api_timeout_ms.setVisible(False)
 
     def apply_config(self, config: AppConfig) -> None:
         provider = config.provider if config.provider in PROVIDER_OPTIONS else DEFAULT_PROVIDER
@@ -254,11 +328,33 @@ class ParameterGroup(QGroupBox):
         if self.effort_level.findText(effort) >= 0:
             self.effort_level.setCurrentText(effort)
 
+        # Kimi 专用参数恢复
+        if preset.show_enable_tool_search:
+            val = config.enable_tool_search.strip() or preset.enable_tool_search_default
+            if self.enable_tool_search.findText(val) >= 0:
+                self.enable_tool_search.setCurrentText(val)
+            elif self.enable_tool_search.count() > 0:
+                self.enable_tool_search.setCurrentIndex(0)
+
+        # GML5 专用参数恢复
+        if preset.show_disable_nonessential_traffic:
+            val = config.disable_nonessential_traffic.strip() or preset.disable_nonessential_traffic_default
+            if self.disable_nonessential_traffic.findText(val) >= 0:
+                self.disable_nonessential_traffic.setCurrentText(val)
+            elif self.disable_nonessential_traffic.count() > 0:
+                self.disable_nonessential_traffic.setCurrentIndex(0)
+
+        # GML5 专用：API_TIMEOUT_MS 恢复
+        if preset.show_api_timeout_ms:
+            val = config.api_timeout_ms.strip() or preset.api_timeout_ms_default
+            self.api_timeout_ms.setText(val)
+
         self.project_path_edit.setText(config.project_path)
 
     def collect_config_data(self) -> dict:
         """收集当前 UI 上的参数配置，统一从下拉框读取。"""
         provider = self.provider_combo.currentText()
+        preset = get_provider_preset(provider)
         return {
             "provider": provider,
             "base_url": self.base_url_edit.text().strip(),
@@ -269,6 +365,9 @@ class ParameterGroup(QGroupBox):
             "subagent_model": self.model_subagent.currentText(),
             "effort_level": self.effort_level.currentText(),
             "project_path": self.project_path_edit.text().strip(),
+            "enable_tool_search": self.enable_tool_search.currentText() if preset.show_enable_tool_search else "",
+            "disable_nonessential_traffic": self.disable_nonessential_traffic.currentText() if preset.show_disable_nonessential_traffic else "",
+            "api_timeout_ms": self.api_timeout_ms.text().strip() if preset.show_api_timeout_ms else "",
         }
 
     def set_project_path(self, path: str) -> None:

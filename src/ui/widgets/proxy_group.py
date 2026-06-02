@@ -60,6 +60,13 @@ class _ProxyRow(QWidget):
         layout.addWidget(self.password, 1)
         self.setLayout(layout)
 
+        # 勾选代理时，自动填写 127.0.0.1（仅当 IP 为空时）
+        self.enabled.toggled.connect(self._on_enabled_toggled)
+
+    def _on_enabled_toggled(self, checked: bool) -> None:
+        if checked and not self.host.text().strip():
+            self.host.setText("127.0.0.1")
+
 
 class ProxyGroup(QGroupBox):
     def __init__(self) -> None:

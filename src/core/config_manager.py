@@ -48,6 +48,11 @@ class ProviderSettings:
     default_haiku_model: str = ""
     subagent_model: str = ""
     effort_level: str = ""
+    # Kimi 专用
+    enable_tool_search: str = "false"
+    # GML5 专用
+    disable_nonessential_traffic: str = "1"
+    api_timeout_ms: str = "3000000"
     proxy: ProxyConfig = field(default_factory=ProxyConfig)
 
 
@@ -63,6 +68,11 @@ class AppConfig:
     default_haiku_model: str = DEFAULT_HAIKU_MODEL
     subagent_model: str = DEFAULT_SUBAGENT_MODEL
     effort_level: str = DEFAULT_EFFORT_LEVEL
+    # Kimi 专用
+    enable_tool_search: str = "false"
+    # GML5 专用
+    disable_nonessential_traffic: str = "1"
+    api_timeout_ms: str = "3000000"
     project_path: str = ""
     proxy: ProxyConfig = field(default_factory=ProxyConfig)
     recent_projects: list[str] = field(default_factory=list)
@@ -121,6 +131,11 @@ class ConfigManager:
         config.subagent_model = ps.subagent_model or preset.subagent_model_default
         config.effort_level = ps.effort_level or preset.effort_level_default
         config.proxy = ps.proxy
+        # Kimi 专用参数
+        config.enable_tool_search = ps.enable_tool_search or preset.enable_tool_search_default
+        # GML5 专用参数
+        config.disable_nonessential_traffic = ps.disable_nonessential_traffic or preset.disable_nonessential_traffic_default
+        config.api_timeout_ms = ps.api_timeout_ms or preset.api_timeout_ms_default
 
     def _flush_active_provider(self, config: AppConfig) -> None:
         token = config.token.strip()
@@ -134,6 +149,9 @@ class ConfigManager:
             default_haiku_model=config.default_haiku_model,
             subagent_model=config.subagent_model,
             effort_level=config.effort_level,
+            enable_tool_search=config.enable_tool_search,
+            disable_nonessential_traffic=config.disable_nonessential_traffic,
+            api_timeout_ms=config.api_timeout_ms,
             proxy=config.proxy,
         )
         config.provider_settings[config.provider] = ps
@@ -154,6 +172,9 @@ class ConfigManager:
                 default_haiku_model=str(v.get("default_haiku_model", "") or ""),
                 subagent_model=str(v.get("subagent_model", "") or ""),
                 effort_level=str(v.get("effort_level", "") or ""),
+                enable_tool_search=str(v.get("enable_tool_search", "") or "false"),
+                disable_nonessential_traffic=str(v.get("disable_nonessential_traffic", "") or "1"),
+                api_timeout_ms=str(v.get("api_timeout_ms", "") or "3000000"),
             )
         # 初始化不存在 provider 的条目
         for p in PROVIDER_OPTIONS:
@@ -180,6 +201,9 @@ class ConfigManager:
             default_haiku_model=str(data.get("default_haiku_model", "") or ""),
             subagent_model=str(data.get("subagent_model", "") or ""),
             effort_level=str(data.get("effort_level", "") or ""),
+            enable_tool_search=str(data.get("enable_tool_search", "") or "false"),
+            disable_nonessential_traffic=str(data.get("disable_nonessential_traffic", "") or "1"),
+            api_timeout_ms=str(data.get("api_timeout_ms", "") or "3000000"),
             project_path=str(data.get("project_path", "") or ""),
             proxy=ProxyConfig(),
             recent_projects=data.get("recent_projects", []) or [],
@@ -199,6 +223,9 @@ class ConfigManager:
                 "default_haiku_model": ps.default_haiku_model,
                 "subagent_model": ps.subagent_model,
                 "effort_level": ps.effort_level,
+                "enable_tool_search": ps.enable_tool_search,
+                "disable_nonessential_traffic": ps.disable_nonessential_traffic,
+                "api_timeout_ms": ps.api_timeout_ms,
             }
         return {
             "provider": config.provider,

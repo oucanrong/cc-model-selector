@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-APP_NAME = "Claude-Code模型管理器"
+APP_NAME = "Claude-Code模型管理器v1.4"
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT_DIR / "config.json"
@@ -55,6 +55,22 @@ class ProviderPreset:
     parameters_enabled: bool
     base_url_editable: bool = False
     show_base_url_in_main: bool = False
+    # Kimi 专用：是否显示 ENABLE_TOOL_SEARCH 参数
+    show_enable_tool_search: bool = False
+    # Kimi 专用：ENABLE_TOOL_SEARCH 下拉框选项
+    enable_tool_search_options: tuple[str, ...] = ("false",)
+    enable_tool_search_default: str = "false"
+    # GML5 专用：是否显示 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 参数
+    show_disable_nonessential_traffic: bool = False
+    # GML5 专用：CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 下拉框选项
+    disable_nonessential_traffic_options: tuple[str, ...] = ("1",)
+    disable_nonessential_traffic_default: str = "1"
+    # GML5 专用：是否显示 API_TIMEOUT_MS 参数
+    show_api_timeout_ms: bool = False
+    # GML5 专用：API_TIMEOUT_MS 默认值
+    api_timeout_ms_default: str = "3000000"
+    # 是否隐藏 CLAUDE_CODE_EFFORT_LEVEL（Kimi 和 GML5 不再显示该参数）
+    hide_effort_level: bool = False
 
 
 PROVIDER_PRESETS: dict[str, ProviderPreset] = {
@@ -88,17 +104,21 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
     ),
     PROVIDER_KIMI: ProviderPreset(
         base_url="https://api.moonshot.cn/anthropic",
-        model_options=("kimi-k2.5",),
-        anthropic_model_default="kimi-k2.5",
-        default_opus_model_default="kimi-k2.5",
-        default_sonnet_model_default="kimi-k2.5",
-        default_haiku_model_default="kimi-k2.5",
-        subagent_model_default="kimi-k2.5",
+        model_options=("kimi-k2.6",),
+        anthropic_model_default="kimi-k2.6",
+        default_opus_model_default="kimi-k2.6",
+        default_sonnet_model_default="kimi-k2.6",
+        default_haiku_model_default="kimi-k2.6",
+        subagent_model_default="kimi-k2.6",
         effort_level_options=("max",),
         effort_level_default="max",
         parameters_enabled=True,
         base_url_editable=True,
         show_base_url_in_main=False,
+        show_enable_tool_search=True,
+        enable_tool_search_options=("false",),
+        enable_tool_search_default="false",
+        hide_effort_level=True,
     ),
     PROVIDER_ZHIPU: ProviderPreset(
         base_url="https://open.bigmodel.cn/api/anthropic",
@@ -113,6 +133,12 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         parameters_enabled=True,
         base_url_editable=True,
         show_base_url_in_main=False,
+        show_disable_nonessential_traffic=True,
+        disable_nonessential_traffic_options=("1",),
+        disable_nonessential_traffic_default="1",
+        show_api_timeout_ms=True,
+        api_timeout_ms_default="3000000",
+        hide_effort_level=True,
     ),
     PROVIDER_CLAUDE_RELAY: ProviderPreset(
         base_url="",

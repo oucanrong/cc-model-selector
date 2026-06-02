@@ -1,11 +1,14 @@
 # 路径: src/ui/widgets/auth_settings_dialog.py
 # 作用: 鉴权设置弹窗
 #   - DeepSeek / Kimi / 智谱GML：base_url 可编辑，保留预设默认值；API Key 可填。
+#     增加 申请API 按钮。
 #   - Claude中转 / GPT中转：base_url 可编辑（用户自填中转地址）；API Key 可填。
 #   - Claude官方接口：不在此弹窗中出现。
 #   - base_url 与 API Key 均可任意留空，互不绑定。
 
 from __future__ import annotations
+
+import webbrowser
 
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QFont
@@ -33,6 +36,13 @@ from src.core.constants import (
 )
 from src.core.config_manager import ProviderSettings
 
+# API 申请地址
+_API_APPLY_URLS: dict[str, str] = {
+    PROVIDER_DEEPSEEK: "https://platform.deepseek.com/usage",
+    PROVIDER_KIMI: "https://platform.moonshot.cn/console/api-keys",
+    PROVIDER_ZHIPU: "https://bigmodel.cn/apikey/platform",
+}
+
 
 class AuthSettingsDialog(QDialog):
     """
@@ -42,8 +52,9 @@ class AuthSettingsDialog(QDialog):
     其中包含每个 provider 的 base_url 与 token。
 
     所有标签页均包含：
-      - Base URL 输入框（可编辑；DeepSeek/Kimi/GML 预填固定默认值，中转留空由用户填写）
+      - Base URL 输入框（可编辑；DeepSeek/Kimi/智谱GML 预填固定默认值，中转留空由用户填写）
       - API Key  输入框（密文）
+      - 申请API按钮（仅 DeepSeek/Kimi/智谱GML，用默认浏览器打开申请地址）
     base_url 与 API Key 均可任意留空，互不绑定。
     """
 
@@ -99,7 +110,7 @@ class AuthSettingsDialog(QDialog):
         tabs: list[tuple[str, str]] = [
             ("DeepSeek",  PROVIDER_DEEPSEEK),
             ("Kimi",      PROVIDER_KIMI),
-            ("GML",       PROVIDER_ZHIPU),
+            ("智谱GML",   PROVIDER_ZHIPU),
             ("Claude中转", PROVIDER_CLAUDE_RELAY),
             ("GPT中转",    PROVIDER_GPT_RELAY),
         ]
@@ -142,6 +153,7 @@ class AuthSettingsDialog(QDialog):
         每个标签页均包含：
           - Base URL（可编辑输入框；固定 provider 预填默认值，中转留空）
           - API Key （密文输入框）
+          - 申请API按钮（仅 DeepSeek/Kimi/智谱GML）
         """
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -178,10 +190,36 @@ class AuthSettingsDialog(QDialog):
         form.addRow("API Key", token_edit)
 
         layout.addLayout(form)
+
+        # 按钮行
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+
+        # 申请API按钮（仅 DeepSeek / Kimi / 智谱GML）
+        if provider_key in _API_APPLY_URLS:
+            apply_btn = QPushButton("申请API")
+            apply_btn.setObjectName("authApplyButton")
+            apply_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            apply_btn.clicked.connect(lambda checked, key=provider_key: self._apply_api(key))
+            btn_row.addWidget(apply_btn)
+
+        btn_row.addStretch(1)
+        layout.addLayout(btn_row)
+
         layout.addStretch(1)
 
         self._fields[provider_key] = (base_url_edit, token_edit)
         return page
+
+    # ------------------------------------------------------------------
+    # 申请API
+    # ------------------------------------------------------------------
+
+    def _apply_api(self, provider_key: str) -> None:
+        """使用默认浏览器打开 API 申请地址。"""
+        url = _API_APPLY_URLS.get(provider_key)
+        if url:
+            webbrowser.open(url, new=2)
 
     # ------------------------------------------------------------------
     # 结果获取
@@ -246,6 +284,9 @@ class AuthSettingsDialog(QDialog):
                 background-color: #6e7681;
             }
             QPushButton#authDialogConfirmButton {
+                background-color: #2ea043;
+            }
+            QPushButton#authApplyButton {
                 background-color: #2ea043;
             }
             QLineEdit {

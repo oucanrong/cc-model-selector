@@ -306,6 +306,10 @@ class MainWindow(QMainWindow):
         pg.model_subagent.currentTextChanged.connect(self._schedule_autosave)
         pg.effort_level.currentTextChanged.connect(self._schedule_autosave)
         pg.project_path_edit.textChanged.connect(self._schedule_autosave)
+        # Kimi / GML5 专用参数
+        pg.enable_tool_search.currentTextChanged.connect(self._schedule_autosave)
+        pg.disable_nonessential_traffic.currentTextChanged.connect(self._schedule_autosave)
+        pg.api_timeout_ms.textChanged.connect(self._schedule_autosave)
 
         for row in (self.proxy_group.http, self.proxy_group.https, self.proxy_group.socks5):
             row.enabled.toggled.connect(self._schedule_autosave)
@@ -358,6 +362,10 @@ class MainWindow(QMainWindow):
         self.config.subagent_model = data["subagent_model"]
         self.config.effort_level = data["effort_level"]
         self.config.project_path = data["project_path"]
+        # Kimi / GML5 专用参数
+        self.config.enable_tool_search = data["enable_tool_search"]
+        self.config.disable_nonessential_traffic = data["disable_nonessential_traffic"]
+        self.config.api_timeout_ms = data["api_timeout_ms"]
 
         self.config.proxy.http = ProxyItem(**proxy["http"])
         self.config.proxy.https = ProxyItem(**proxy["https"])
@@ -443,6 +451,7 @@ class MainWindow(QMainWindow):
                     default_haiku_model="",
                     subagent_model="",
                     effort_level="",
+                    api_timeout_ms="",
                     proxy=ProxyConfig(),
                 )
 

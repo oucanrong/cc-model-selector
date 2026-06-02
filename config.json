@@ -1,7 +1,12 @@
 {
   "provider": "Claude官方接口",
   "auth_tokens": {
-    "Claude官方接口": ""
+    "Claude官方接口": "",
+    "DeepSeek": "",
+    "Kimi": "",
+    "智谱GML": "",
+    "Claude中转": "",
+    "GPT中转": ""
   },
   "project_path": "",
   "recent_projects": [],
@@ -14,7 +19,10 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": ""
+      "effort_level": "",
+      "enable_tool_search": "",
+      "disable_nonessential_traffic": "",
+      "api_timeout_ms": ""
     },
     "DeepSeek": {
       "base_url": "",
@@ -24,7 +32,10 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": ""
+      "effort_level": "",
+      "enable_tool_search": "false",
+      "disable_nonessential_traffic": "1",
+      "api_timeout_ms": "3000000"
     },
     "Kimi": {
       "base_url": "",
@@ -34,7 +45,10 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": ""
+      "effort_level": "",
+      "enable_tool_search": "false",
+      "disable_nonessential_traffic": "1",
+      "api_timeout_ms": "3000000"
     },
     "智谱GML": {
       "base_url": "",
@@ -44,7 +58,10 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": ""
+      "effort_level": "",
+      "enable_tool_search": "false",
+      "disable_nonessential_traffic": "1",
+      "api_timeout_ms": "3000000"
     },
     "Claude中转": {
       "base_url": "",
@@ -54,7 +71,10 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": ""
+      "effort_level": "",
+      "enable_tool_search": "false",
+      "disable_nonessential_traffic": "1",
+      "api_timeout_ms": "3000000"
     },
     "GPT中转": {
       "base_url": "",
@@ -64,7 +84,10 @@
       "default_sonnet_model": "",
       "default_haiku_model": "",
       "subagent_model": "",
-      "effort_level": ""
+      "effort_level": "",
+      "enable_tool_search": "false",
+      "disable_nonessential_traffic": "1",
+      "api_timeout_ms": "3000000"
     }
   }
 }
