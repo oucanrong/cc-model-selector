@@ -1,4 +1,4 @@
-# 路径: src/services/env_builder_service.py
+# 路径: C:\Users\oucan\Documents\vscode\claude_code启动器\src\services\env_builder_service.py
 # 作用: 构建 Claude Code 启动环境变量
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ from src.core.config_manager import AppConfig
 from src.core.constants import (
     PROVIDER_CLAUDE_DEFAULT,
     PROVIDER_CLAUDE_RELAY,
-    PROVIDER_GPT_RELAY,
     get_provider_preset,
 )
 from .proxy_service import build_proxy_env
@@ -44,7 +43,7 @@ def build_env(config: AppConfig) -> dict[str, str]:
             env.pop(key, None)
 
     else:
-        # 所有第三方 Provider（DeepSeek / Kimi / 智谱GML / Claude中转 / GPT中转）：
+        # 所有第三方 Provider（DeepSeek / Kimi / 智谱GML / 千问 / Claude中转）：
         # 注入 token，并清除 ANTHROPIC_API_KEY。
         # 原因：Claude Code 会优先读取 ANTHROPIC_API_KEY；若该变量存在但为空，
         # 即使 ANTHROPIC_AUTH_TOKEN 已正确设置，Claude Code 也会报"未登录"。
@@ -65,7 +64,7 @@ def build_env(config: AppConfig) -> dict[str, str]:
 
             # 模型参数：中转 provider 用用户输入值（可为空，为空则不注入）；
             # 固定 provider 回退到预设默认值。
-            is_relay = config.provider in (PROVIDER_CLAUDE_RELAY, PROVIDER_GPT_RELAY)
+            is_relay = config.provider == PROVIDER_CLAUDE_RELAY
 
             def _model_val(config_val: str, preset_default: str) -> str:
                 v = config_val.strip()
@@ -90,9 +89,9 @@ def build_env(config: AppConfig) -> dict[str, str]:
             if subagent:
                 env["CLAUDE_CODE_SUBAGENT_MODEL"] = subagent
 
-            # CLAUDE_CODE_EFFORT_LEVEL：仅对非 Kimi、非 GML5 的 provider 注入
+            # CLAUDE_CODE_EFFORT_LEVEL：仅对非 Kimi、非 GML5、非千问 的 provider 注入
             if preset.hide_effort_level:
-                # Kimi / GML5 不使用此参数，确保环境变量中不存在
+                # Kimi / GML5 / 千问 不使用此参数，确保环境变量中不存在
                 env.pop("CLAUDE_CODE_EFFORT_LEVEL", None)
             else:
                 effort = config.effort_level.strip() or (preset.effort_level_default if not is_relay else "")

@@ -1,4 +1,4 @@
-# 路径: src/ui/main_window.py
+# 路径: C:\Users\oucan\Documents\vscode\claude_code启动器\src\ui\main_window.py
 # 作用: 主窗口与交互逻辑
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.core.config_manager import AppConfig, ConfigManager, ProxyConfig, ProxyItem, ProviderSettings
-from src.core.constants import APP_NAME, PROVIDER_CLAUDE_DEFAULT, PROVIDER_CLAUDE_RELAY, PROVIDER_GPT_RELAY
+from src.core.constants import APP_NAME, PROVIDER_CLAUDE_DEFAULT, PROVIDER_CLAUDE_RELAY
 from src.core.logger import setup_logger
 from src.core.process_manager import ProcessManager
 from src.ui.styles import APP_QSS
@@ -35,7 +35,7 @@ from src.ui.widgets.proxy_group import ProxyGroup
 from src.workers.claude_worker import ClaudeWorker
 
 # 中转 Provider 集合（需要 base_url 非空校验）
-_RELAY_PROVIDERS = {PROVIDER_CLAUDE_RELAY, PROVIDER_GPT_RELAY}
+_RELAY_PROVIDERS = {PROVIDER_CLAUDE_RELAY}
 
 # 退出确认弹窗按钮的样式（修复全局 QPushButton color:white 导致按钮文字不可见的问题）
 _CONFIRM_DIALOG_BUTTON_QSS = """

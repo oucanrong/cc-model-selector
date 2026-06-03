@@ -1,12 +1,7 @@
 {
   "provider": "Claude官方接口",
   "auth_tokens": {
-    "Claude官方接口": "",
-    "DeepSeek": "",
-    "Kimi": "",
-    "智谱GML": "",
-    "Claude中转": "",
-    "GPT中转": ""
+    "Claude官方接口": ""
   },
   "project_path": "",
   "recent_projects": [],
@@ -63,7 +58,7 @@
       "disable_nonessential_traffic": "1",
       "api_timeout_ms": "3000000"
     },
-    "Claude中转": {
+    "千问": {
       "base_url": "",
       "token": "",
       "anthropic_model": "",
@@ -76,7 +71,7 @@
       "disable_nonessential_traffic": "1",
       "api_timeout_ms": "3000000"
     },
-    "GPT中转": {
+    "Claude中转": {
       "base_url": "",
       "token": "",
       "anthropic_model": "",

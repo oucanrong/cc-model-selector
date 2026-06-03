@@ -1,10 +1,11 @@
-# 路径: src/ui/widgets/parameter_group.py
+# 路径: C:\Users\oucan\Documents\vscode\claude_code启动器\src\ui\widgets\parameter_group.py
 # 作用: 启动参数区域控件
-#   - DeepSeek / Kimi / 智谱GML：base_url 不在主界面显示（在鉴权弹窗编辑），
+#   - DeepSeek / Kimi / 智谱GML / 千问：base_url 不在主界面显示（在鉴权弹窗编辑），
 #     模型下拉框可用。
 #   - Kimi：不显示 CLAUDE_CODE_EFFORT_LEVEL，显示 ENABLE_TOOL_SEARCH（下拉框，只有 false）。
 #   - 智谱GML：不显示 CLAUDE_CODE_EFFORT_LEVEL，显示 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC（下拉框，只有 1）。
-#   - Claude中转 / GPT中转：base_url 同样不在主界面显示（从 config 静默读取），
+#   - 千问：不显示 CLAUDE_CODE_EFFORT_LEVEL。
+#   - Claude中转：base_url 同样不在主界面显示（从 config 静默读取），
 #     模型 & effort 使用下拉框（预设选项列表），与固定 provider 保持一致。
 #   - Claude官方接口：所有参数行均禁用。
 
@@ -27,14 +28,13 @@ from src.core.constants import (
     DEFAULT_PROVIDER,
     PROVIDER_OPTIONS,
     PROVIDER_CLAUDE_RELAY,
-    PROVIDER_GPT_RELAY,
     PROVIDER_KIMI,
     PROVIDER_ZHIPU,
     get_provider_preset,
 )
 
 # 中转 provider 集合
-_RELAY_PROVIDERS = {PROVIDER_CLAUDE_RELAY, PROVIDER_GPT_RELAY}
+_RELAY_PROVIDERS = {PROVIDER_CLAUDE_RELAY}
 
 
 class ParameterGroup(QGroupBox):

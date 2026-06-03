@@ -1,4 +1,4 @@
-# 路径: src/core/constants.py
+# 路径: C:\Users\oucan\Documents\vscode\claude_code启动器\src\core\constants.py
 # 作用: 全局常量与 Provider 预设
 
 from __future__ import annotations
@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-APP_NAME = "Claude-Code模型管理器v1.4"
+APP_NAME = "Claude-Code模型管理器v1.5"
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT_DIR / "config.json"
@@ -28,16 +28,16 @@ PROVIDER_CLAUDE_DEFAULT = "Claude官方接口"
 PROVIDER_DEEPSEEK = "DeepSeek"
 PROVIDER_KIMI = "Kimi"
 PROVIDER_ZHIPU = "智谱GML"
+PROVIDER_QWEN = "千问"
 PROVIDER_CLAUDE_RELAY = "Claude中转"
-PROVIDER_GPT_RELAY = "GPT中转"
 
 PROVIDER_OPTIONS = [
     PROVIDER_CLAUDE_DEFAULT,
     PROVIDER_DEEPSEEK,
     PROVIDER_KIMI,
     PROVIDER_ZHIPU,
+    PROVIDER_QWEN,
     PROVIDER_CLAUDE_RELAY,
-    PROVIDER_GPT_RELAY,
 ]
 
 
@@ -69,7 +69,7 @@ class ProviderPreset:
     show_api_timeout_ms: bool = False
     # GML5 专用：API_TIMEOUT_MS 默认值
     api_timeout_ms_default: str = "3000000"
-    # 是否隐藏 CLAUDE_CODE_EFFORT_LEVEL（Kimi 和 GML5 不再显示该参数）
+    # 是否隐藏 CLAUDE_CODE_EFFORT_LEVEL（Kimi / GML5 / 千问 不再显示该参数）
     hide_effort_level: bool = False
 
 
@@ -140,6 +140,21 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         api_timeout_ms_default="3000000",
         hide_effort_level=True,
     ),
+    PROVIDER_QWEN: ProviderPreset(
+        base_url="https://dashscope.aliyuncs.com/apps/anthropic",
+        model_options=("qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash"),
+        anthropic_model_default="qwen3.7-max",
+        default_opus_model_default="qwen3.7-max",
+        default_sonnet_model_default="qwen3.7-max",
+        default_haiku_model_default="qwen3.6-flash",
+        subagent_model_default="qwen3.7-max",
+        effort_level_options=("max",),
+        effort_level_default="max",
+        parameters_enabled=True,
+        base_url_editable=True,
+        show_base_url_in_main=False,
+        hide_effort_level=True,
+    ),
     PROVIDER_CLAUDE_RELAY: ProviderPreset(
         base_url="",
         model_options=("claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5-20251001"),
@@ -149,20 +164,6 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         default_haiku_model_default="claude-haiku-4-5-20251001",
         subagent_model_default="claude-sonnet-4-6",
         effort_level_options=("low", "medium", "high", "max"),
-        effort_level_default="high",
-        parameters_enabled=True,
-        base_url_editable=True,
-        show_base_url_in_main=False,
-    ),
-    PROVIDER_GPT_RELAY: ProviderPreset(
-        base_url="",
-        model_options=("gpt-5.5", "gpt-5.4-mini"),
-        anthropic_model_default="gpt-5.5",
-        default_opus_model_default="gpt-5.5",
-        default_sonnet_model_default="gpt-5.5",
-        default_haiku_model_default="gpt-5.4-mini",
-        subagent_model_default="gpt-5.5",
-        effort_level_options=("low", "medium", "high", "xhigh"),
         effort_level_default="high",
         parameters_enabled=True,
         base_url_editable=True,
