@@ -1,8 +1,9 @@
-# 路径: src/core/config_manager.py
-# 作用: 修复 provider 切换时 base_url 错误问题，取消 base_url/token 必须同时非空校验
+# 路径: C:\Users\oucan\Documents\vscode\claude_code启动器\src\core\config_manager.py
+# 作用: 修复 provider 切换时代理配置互相干扰的问题，确保各 provider 配置完全独立
 
 from __future__ import annotations
 
+import copy
 import json
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
@@ -105,6 +106,7 @@ class ConfigManager:
         )
 
     def _sync_active_provider(self, config: AppConfig) -> None:
+        """将 provider_settings 中当前 provider 的配置同步到 config 顶层字段。"""
         preset = get_provider_preset(config.provider)
         ps = config.provider_settings.get(config.provider)
         if ps is None:
@@ -130,7 +132,9 @@ class ConfigManager:
         config.default_haiku_model = ps.default_haiku_model or preset.default_haiku_model_default
         config.subagent_model = ps.subagent_model or preset.subagent_model_default
         config.effort_level = ps.effort_level or preset.effort_level_default
-        config.proxy = ps.proxy
+        # 深拷贝代理配置——关键：确保 config.proxy 与 provider_settings[provider].proxy
+        # 是两个完全独立的对象，防止后续 UI 修改 config.proxy 时污染已保存的 provider 配置
+        config.proxy = copy.deepcopy(ps.proxy)
         # Kimi 专用参数
         config.enable_tool_search = ps.enable_tool_search or preset.enable_tool_search_default
         # GML5 专用参数
@@ -138,6 +142,7 @@ class ConfigManager:
         config.api_timeout_ms = ps.api_timeout_ms or preset.api_timeout_ms_default
 
     def _flush_active_provider(self, config: AppConfig) -> None:
+        """将 config 顶层字段写回 provider_settings 中当前 provider 的条目。"""
         token = config.token.strip()
         config.auth_tokens[config.provider] = token
         ps = ProviderSettings(
@@ -152,7 +157,9 @@ class ConfigManager:
             enable_tool_search=config.enable_tool_search,
             disable_nonessential_traffic=config.disable_nonessential_traffic,
             api_timeout_ms=config.api_timeout_ms,
-            proxy=config.proxy,
+            # 深拷贝代理配置——关键：确保保存到 provider_settings 的 proxy
+            # 与 config.proxy 是完全独立的对象，互不干扰
+            proxy=copy.deepcopy(config.proxy),
         )
         config.provider_settings[config.provider] = ps
 
@@ -182,7 +189,7 @@ class ConfigManager:
                     socks5=ProxyItem(**(proxy_data.get("socks5") or {})),
                 ),
             )
-        # 初始化不存在 provider 的条目
+        # 为 JSON 中不存在的 provider 初始化默认条目，每个 provider 获得独立的 ProxyConfig
         for p in PROVIDER_OPTIONS:
             if p not in provider_settings:
                 preset = get_provider_preset(p)
@@ -195,6 +202,7 @@ class ConfigManager:
                     default_haiku_model=preset.default_haiku_model_default,
                     subagent_model=preset.subagent_model_default,
                     effort_level=preset.effort_level_default,
+                    # proxy 使用 default_factory 自动创建独立实例
                 )
         return AppConfig(
             provider=provider,
@@ -211,6 +219,8 @@ class ConfigManager:
             disable_nonessential_traffic=str(data.get("disable_nonessential_traffic", "") or "1"),
             api_timeout_ms=str(data.get("api_timeout_ms", "") or "3000000"),
             project_path=str(data.get("project_path", "") or ""),
+            # 顶层 proxy 始终初始化为空——后续由 _sync_active_provider 从
+            # provider_settings[provider] 中深拷贝加载当前 provider 的真实代理配置
             proxy=ProxyConfig(),
             recent_projects=data.get("recent_projects", []) or [],
             provider_settings=provider_settings,

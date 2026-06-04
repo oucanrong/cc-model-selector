@@ -1,5 +1,5 @@
 # 路径: C:\Users\oucan\Documents\vscode\claude_code启动器\src\ui\main_window.py
-# 作用: 主窗口与交互逻辑
+# 作用: 主窗口与交互逻辑（修复 Provider 切换时代理参数串扰，升级功能独立为按钮）
 
 from __future__ import annotations
 
@@ -231,6 +231,7 @@ class MainWindow(QMainWindow):
         self.install_progress_label.setStyleSheet("color: #0e639c; font-size: 11pt;")
         self.install_progress_label.setVisible(False)
 
+        # ── 底部按钮 ──────────────────────────────────────────────
         self.start_btn = QPushButton("启动")
         self.start_btn.setObjectName("startButton")
         self.stop_btn = QPushButton("停止")
@@ -241,6 +242,8 @@ class MainWindow(QMainWindow):
         self.clear_btn.setObjectName("clearButton")
         self.reset_btn = QPushButton("重置")
         self.reset_btn.setObjectName("resetButton")
+        self.upgrade_btn = QPushButton("升级Claude Code")
+        self.upgrade_btn.setObjectName("upgradeCCButton")
         self.exit_btn = QPushButton("退出")
         self.exit_btn.setObjectName("exitButton")
 
@@ -249,6 +252,7 @@ class MainWindow(QMainWindow):
         self.copy_btn.clicked.connect(self.copy_logs_to_clipboard)
         self.clear_btn.clicked.connect(self.log_console.clear_logs)
         self.reset_btn.clicked.connect(self.reset_form)
+        self.upgrade_btn.clicked.connect(self.upgrade_claude)
         self.exit_btn.clicked.connect(self.close)
 
         self.stop_btn.setEnabled(False)
@@ -260,6 +264,7 @@ class MainWindow(QMainWindow):
             self.copy_btn,
             self.clear_btn,
             self.reset_btn,
+            self.upgrade_btn,
             self.exit_btn,
         ):
             btn.setMinimumWidth(120)
@@ -329,9 +334,24 @@ class MainWindow(QMainWindow):
         self._autosave_timer.start()
 
     def _handle_provider_change(self, provider: str) -> None:
-        # 先把当前 UI 数据存入旧 provider 的 provider_settings
+        """
+        Provider 切换处理。
+
+        关键：_sync_config_from_ui() 会将 config.provider 设为 combo box
+        当前值（即新 Provider），导致后续 _flush_active_provider 将旧
+        Provider 的代理参数写入新 Provider 的配置中。
+
+        修复方式：在调用 _sync_config_from_ui 前保存旧 provider，在
+        _flush_active_provider 前恢复，确保旧 provider 的配置正确落盘。
+        """
+        # 保存旧 provider（_sync_config_from_ui 会覆盖 config.provider）
+        old_provider = self.config.provider
+
+        # 将当前 UI 数据读取到 config 顶层字段
         self._sync_config_from_ui()
-        # 刷新旧 provider 到 provider_settings（确保 proxy 等参数持久化）
+
+        # 恢复旧 provider，确保 _flush_active_provider 写入正确的条目
+        self.config.provider = old_provider
         self.config_manager._flush_active_provider(self.config)
 
         # 切换到新 provider
@@ -340,8 +360,7 @@ class MainWindow(QMainWindow):
         # 从 provider_settings 恢复新 provider 的参数到 UI
         self._loading = True
         try:
-            from src.core.config_manager import ConfigManager as _CM
-            _CM(self.config_manager.path)._sync_active_provider(self.config)
+            self.config_manager._sync_active_provider(self.config)
             self.parameter_group.apply_config(self.config)
             self.proxy_group.apply_config(self.config)
         finally:
@@ -508,6 +527,10 @@ class MainWindow(QMainWindow):
         )
         return _show_confirm_dialog(self, "代理提示", msg)
 
+    # ------------------------------------------------------------------
+    # 启动 Claude Code
+    # ------------------------------------------------------------------
+
     def start_claude(self) -> None:
         self._auto_save()
 
@@ -515,7 +538,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "提示", "Claude Code 已在运行，禁止重复启动。")
             return
 
-        # ── 校验：第三方 Provider 的 API 鉴权信息不能为空 ──────────────────────
+        # ── 校验：第三方 Provider 的 API 鉴权信息不能为空 ──────────
         if self.config.provider != PROVIDER_CLAUDE_DEFAULT:
             token = self.config.auth_tokens.get(self.config.provider, "").strip()
             if not token:
@@ -527,7 +550,7 @@ class MainWindow(QMainWindow):
                 )
                 return
 
-        # ── 校验：项目目录不能为空 ──────────────────────────────────────────────
+        # ── 校验：项目目录不能为空 ──────────────────────────────────
         try:
             validate_path = self.parameter_group.project_path_edit.text().strip()
             if not validate_path:
@@ -536,11 +559,11 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "校验失败", str(exc))
             return
 
-        # ── 校验：代理配置（勾选必须填 IP + 端口） ────────────────────────────
+        # ── 校验：代理配置（勾选必须填 IP + 端口） ──────────────────
         if not self._validate_proxy_config():
             return
 
-        # ── Claude官方接口：代理为空时提示确认 ───────────────────────────────
+        # ── Claude官方接口：代理为空时提示确认 ─────────────────────
         if self.config.provider == PROVIDER_CLAUDE_DEFAULT:
             if not self._check_proxy_for_official():
                 return
@@ -548,24 +571,55 @@ class MainWindow(QMainWindow):
         self.status_label.setText("正在启动 Claude Code ...")
         self.log_console.append_entry("SYSTEM", "正在启动 Claude Code ...")
 
+        # ── 锁定 UI ──────────────────────────────────────────────
         self.start_btn.setEnabled(False)
         self.reset_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
-
-        # ── 禁用所有参数输入控件（Provider、模型参数、代理、工作目录） ──────
+        self.upgrade_btn.setEnabled(False)
         self.parameter_group.set_ui_enabled(False)
         self.proxy_group.set_ui_enabled(False)
 
-        self.worker = ClaudeWorker(self.config, self.process_manager)
+        self.worker = ClaudeWorker(self.config, self.process_manager, upgrade_only=False)
         self.worker.log_signal.connect(self.log_console.append_process_output)
         self.worker.status_signal.connect(self._update_status)
         self.worker.error_signal.connect(self._on_worker_error)
         self.worker.finished_signal.connect(self._on_worker_finished)
-        # 新增信号连接
         self.worker.npm_not_found_signal.connect(self._on_npm_not_found)
         self.worker.install_success_signal.connect(self._on_install_success)
         self.worker.install_progress_signal.connect(self._on_install_progress)
         self.worker.start()
+
+    # ------------------------------------------------------------------
+    # 升级 Claude Code（独立按钮）
+    # ------------------------------------------------------------------
+
+    def upgrade_claude(self) -> None:
+        """点击「升级Claude Code」按钮：在后台线程中升级 Claude Code。"""
+        if self.process_manager.running:
+            QMessageBox.information(self, "提示", "Claude Code 正在运行，请先停止后再升级。")
+            return
+
+        self.status_label.setText("正在升级 Claude Code ...")
+        self.log_console.append_entry("SYSTEM", "正在升级 Claude Code ...")
+
+        # ── 锁定 UI ──────────────────────────────────────────────
+        self.start_btn.setEnabled(False)
+        self.reset_btn.setEnabled(False)
+        self.upgrade_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
+        self.parameter_group.set_ui_enabled(False)
+        self.proxy_group.set_ui_enabled(False)
+
+        self.worker = ClaudeWorker(self.config, self.process_manager, upgrade_only=True)
+        self.worker.log_signal.connect(self.log_console.append_process_output)
+        self.worker.status_signal.connect(self._update_status)
+        self.worker.error_signal.connect(self._on_worker_error)
+        self.worker.finished_signal.connect(self._on_worker_finished)
+        self.worker.start()
+
+    # ------------------------------------------------------------------
+    # 信号处理
+    # ------------------------------------------------------------------
 
     def _on_install_progress(self, value: int, label: str) -> None:
         """更新安装进度条。"""
@@ -615,20 +669,28 @@ class MainWindow(QMainWindow):
         self.log_console.append_entry("SYSTEM", text)
 
     def _on_worker_error(self, text: str) -> None:
-        self.status_label.setText("启动失败")
+        self.status_label.setText("操作失败")
         self.log_console.append_entry("ERROR", text)
         self.install_progress_bar.setVisible(False)
         self.install_progress_label.setVisible(False)
-        QMessageBox.critical(self, "启动失败", text)
+        QMessageBox.critical(self, "操作失败", text)
         self._unlock_ui()
         self.process_manager.clear()
 
     def _on_worker_finished(self, return_code: int) -> None:
-        self.status_label.setText(f"Claude Code 已退出，返回码：{return_code}")
+        # 根据 worker 模式显示不同的状态信息
+        if self.worker is not None and self.worker.upgrade_only:
+            self.status_label.setText("Claude Code 升级流程结束。")
+        else:
+            self.status_label.setText(f"Claude Code 已退出，返回码：{return_code}")
         self.install_progress_bar.setVisible(False)
         self.install_progress_label.setVisible(False)
         self._unlock_ui()
         self.process_manager.clear()
+
+    # ------------------------------------------------------------------
+    # 停止
+    # ------------------------------------------------------------------
 
     def stop_claude(self) -> None:
         if self.worker:
@@ -638,7 +700,7 @@ class MainWindow(QMainWindow):
         self.start_btn.setEnabled(True)
         self.reset_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
-        # ── 恢复所有参数输入控件 ──────────────────────────────────────────
+        self.upgrade_btn.setEnabled(True)
         self.parameter_group.set_ui_enabled(True)
         self.proxy_group.set_ui_enabled(True)
 

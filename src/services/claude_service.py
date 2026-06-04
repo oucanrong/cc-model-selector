@@ -1,5 +1,5 @@
-# 路径: src/services/claude_service.py
-# 作用: Claude Code 启动命令、安装与上下文构建（修复 Windows 下 claude 命令误判）
+# 路径: C:\Users\oucan\Documents\vscode\claude_code启动器\src\services\claude_service.py
+# 作用: Claude Code 启动命令、安装、升级与上下文构建（修复 Windows 下 claude 命令误判）
 
 from __future__ import annotations
 
@@ -178,6 +178,53 @@ class ClaudeService:
         command = self.build_install_command()
 
         # Windows 下使用 CREATE_NO_WINDOW 标志，避免弹出黑色命令行窗口
+        kwargs: dict = {
+            "check": False,
+            "capture_output": True,
+            "text": True,
+            "encoding": "utf-8",
+            "errors": "replace",
+        }
+        if os.name == "nt":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+
+        result = subprocess.run(command, **kwargs)
+        self._resolved_claude_executable = None
+        return result
+
+    def build_upgrade_command(self) -> list[str]:
+        """构建升级命令，使用淘宝 npm 镜像。"""
+        upgrade_args = (
+            f"npm update -g {self.install_package} --registry={_NPM_REGISTRY}"
+        )
+
+        if os.name != "nt":
+            return [
+                "npm", "update", "-g", self.install_package,
+                f"--registry={_NPM_REGISTRY}",
+            ]
+
+        powershell = shutil.which("powershell") or shutil.which("powershell.exe")
+        if powershell:
+            return [
+                powershell,
+                "-NoLogo",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                upgrade_args,
+            ]
+
+        comspec = os.environ.get("COMSPEC") or shutil.which("cmd") or "cmd.exe"
+        return [comspec, "/d", "/c", upgrade_args]
+
+    def upgrade_claude_code(self) -> subprocess.CompletedProcess[str]:
+        """
+        使用淘宝源升级 Claude Code 到最新版本，隐藏命令行窗口（Windows）。
+        """
+        command = self.build_upgrade_command()
+
         kwargs: dict = {
             "check": False,
             "capture_output": True,
