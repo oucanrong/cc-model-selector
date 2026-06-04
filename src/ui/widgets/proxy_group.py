@@ -67,6 +67,14 @@ class _ProxyRow(QWidget):
         if checked and not self.host.text().strip():
             self.host.setText("127.0.0.1")
 
+    def set_row_enabled(self, enabled: bool) -> None:
+        """启用/禁用该代理行的所有控件（启动时禁用，停止后恢复）。"""
+        self.enabled.setEnabled(enabled)
+        self.host.setEnabled(enabled)
+        self.port.setEnabled(enabled)
+        self.username.setEnabled(enabled)
+        self.password.setEnabled(enabled)
+
 
 class ProxyGroup(QGroupBox):
     def __init__(self) -> None:
@@ -81,6 +89,11 @@ class ProxyGroup(QGroupBox):
         form.addRow("HTTPS代理", self.https)
         form.addRow("Socks5代理", self.socks5)
         self.setLayout(form)
+
+    def set_ui_enabled(self, enabled: bool) -> None:
+        """启用/禁用所有代理行控件（启动时禁用，停止后恢复）。"""
+        for row in (self.http, self.https, self.socks5):
+            row.set_row_enabled(enabled)
 
     def apply_config(self, config: AppConfig) -> None:
         self._apply_row(self.http, config.proxy.http)

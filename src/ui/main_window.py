@@ -331,6 +331,8 @@ class MainWindow(QMainWindow):
     def _handle_provider_change(self, provider: str) -> None:
         # 先把当前 UI 数据存入旧 provider 的 provider_settings
         self._sync_config_from_ui()
+        # 刷新旧 provider 到 provider_settings（确保 proxy 等参数持久化）
+        self.config_manager._flush_active_provider(self.config)
 
         # 切换到新 provider
         self.config.provider = provider
@@ -550,6 +552,10 @@ class MainWindow(QMainWindow):
         self.reset_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
 
+        # ── 禁用所有参数输入控件（Provider、模型参数、代理、工作目录） ──────
+        self.parameter_group.set_ui_enabled(False)
+        self.proxy_group.set_ui_enabled(False)
+
         self.worker = ClaudeWorker(self.config, self.process_manager)
         self.worker.log_signal.connect(self.log_console.append_process_output)
         self.worker.status_signal.connect(self._update_status)
@@ -632,6 +638,9 @@ class MainWindow(QMainWindow):
         self.start_btn.setEnabled(True)
         self.reset_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
+        # ── 恢复所有参数输入控件 ──────────────────────────────────────────
+        self.parameter_group.set_ui_enabled(True)
+        self.proxy_group.set_ui_enabled(True)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.process_manager.running:

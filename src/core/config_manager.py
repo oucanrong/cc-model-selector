@@ -163,6 +163,7 @@ class ConfigManager:
         auth_tokens = {p: str(data.get("auth_tokens", {}).get(p, "") or "") for p in PROVIDER_OPTIONS}
         provider_settings = {}
         for p, v in (data.get("provider_settings") or {}).items():
+            proxy_data = v.get("proxy") or {}
             provider_settings[p] = ProviderSettings(
                 base_url=str(v.get("base_url", "") or ""),
                 token=str(v.get("token", "") or ""),
@@ -175,6 +176,11 @@ class ConfigManager:
                 enable_tool_search=str(v.get("enable_tool_search", "") or "false"),
                 disable_nonessential_traffic=str(v.get("disable_nonessential_traffic", "") or "1"),
                 api_timeout_ms=str(v.get("api_timeout_ms", "") or "3000000"),
+                proxy=ProxyConfig(
+                    http=ProxyItem(**(proxy_data.get("http") or {})),
+                    https=ProxyItem(**(proxy_data.get("https") or {})),
+                    socks5=ProxyItem(**(proxy_data.get("socks5") or {})),
+                ),
             )
         # 初始化不存在 provider 的条目
         for p in PROVIDER_OPTIONS:
@@ -226,6 +232,11 @@ class ConfigManager:
                 "enable_tool_search": ps.enable_tool_search,
                 "disable_nonessential_traffic": ps.disable_nonessential_traffic,
                 "api_timeout_ms": ps.api_timeout_ms,
+                "proxy": {
+                    "http": {"enabled": ps.proxy.http.enabled, "host": ps.proxy.http.host, "port": ps.proxy.http.port, "auth": ps.proxy.http.auth},
+                    "https": {"enabled": ps.proxy.https.enabled, "host": ps.proxy.https.host, "port": ps.proxy.https.port, "auth": ps.proxy.https.auth},
+                    "socks5": {"enabled": ps.proxy.socks5.enabled, "host": ps.proxy.socks5.host, "port": ps.proxy.socks5.port, "auth": ps.proxy.socks5.auth},
+                },
             }
         return {
             "provider": config.provider,

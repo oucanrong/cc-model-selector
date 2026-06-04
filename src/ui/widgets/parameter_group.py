@@ -11,15 +11,18 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QSignalBlocker
+from PyQt6.QtCore import QEvent, Qt, QSignalBlocker
 from PyQt6.QtWidgets import (
     QComboBox,
+    QDialog,
     QGridLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QSizePolicy,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -35,6 +38,56 @@ from src.core.constants import (
 
 # 中转 provider 集合
 _RELAY_PROVIDERS = {PROVIDER_CLAUDE_RELAY}
+
+# 自定义弹窗按钮样式（修复全局 QPushButton color:white 导致按钮文字不可见）
+_DIALOG_BUTTON_QSS = """
+QPushButton {
+    color: #222222;
+    background-color: #f0f0f0;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    padding: 5px 18px;
+    min-height: 28px;
+    min-width: 72px;
+    font-size: 12pt;
+}
+QPushButton:hover {
+    background-color: #e0e0e0;
+}
+QPushButton:pressed {
+    background-color: #d0d0d0;
+}
+"""
+
+
+def _show_info_dialog(parent: QWidget, title: str, message: str) -> None:
+    """自定义信息弹窗，修复全局样式导致按钮文字白色不可见。"""
+    dialog = QDialog(parent)
+    dialog.setWindowTitle(title)
+    dialog.setModal(True)
+    dialog.setMinimumWidth(420)
+
+    layout = QVBoxLayout(dialog)
+    layout.setContentsMargins(24, 20, 24, 16)
+    layout.setSpacing(16)
+
+    msg = QLabel(message)
+    msg.setWordWrap(True)
+    msg.setStyleSheet("color: #222222; font-size: 12pt;")
+    layout.addWidget(msg)
+
+    btn_row = QHBoxLayout()
+    btn_row.addStretch(1)
+
+    confirm_btn = QPushButton("确认")
+    confirm_btn.setDefault(True)
+    confirm_btn.setStyleSheet(_DIALOG_BUTTON_QSS)
+    confirm_btn.clicked.connect(dialog.accept)
+
+    btn_row.addWidget(confirm_btn)
+    layout.addLayout(btn_row)
+
+    dialog.exec()
 
 
 class ParameterGroup(QGroupBox):
@@ -113,6 +166,9 @@ class ParameterGroup(QGroupBox):
         self._build_ui()
         self.set_provider(self.provider_combo.currentText())
 
+        # 安装事件过滤器：禁用状态下点击 provider 下拉框时弹窗提示
+        self.provider_combo.installEventFilter(self)
+
     # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
@@ -183,6 +239,33 @@ class ParameterGroup(QGroupBox):
         return label
 
     # ------------------------------------------------------------------
+
+    def eventFilter(self, obj, event):
+        """禁用状态下点击 provider 下拉框时弹窗提示。"""
+        if obj is self.provider_combo and event.type() == QEvent.Type.MouseButtonPress:
+            if not self.provider_combo.isEnabled():
+                _show_info_dialog(
+                    self,
+                    "提示",
+                    "请在Claude Code窗口中输入指令\"/model\"然后按回车键切换模型。",
+                )
+                return True
+        return super().eventFilter(obj, event)
+
+    def set_ui_enabled(self, enabled: bool) -> None:
+        """启用/禁用所有交互控件（启动时禁用，停止后恢复）。"""
+        self.provider_combo.setEnabled(enabled)
+        self.model_main.setEnabled(enabled)
+        self.model_opus.setEnabled(enabled)
+        self.model_sonnet.setEnabled(enabled)
+        self.model_haiku.setEnabled(enabled)
+        self.model_subagent.setEnabled(enabled)
+        self.effort_level.setEnabled(enabled)
+        self.enable_tool_search.setEnabled(enabled)
+        self.disable_nonessential_traffic.setEnabled(enabled)
+        self.api_timeout_ms.setEnabled(enabled)
+        self.pick_btn.setEnabled(enabled)
+        self.project_path_edit.setEnabled(enabled)
 
     def _set_combo_items(self, combo: QComboBox, items: tuple[str, ...], default_text: str) -> None:
         blocker = QSignalBlocker(combo)

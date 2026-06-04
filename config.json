@@ -1,13 +1,7 @@
 {
   "provider": "Claude官方接口",
   "auth_tokens": {
-    "Claude官方接口": "",
-    "DeepSeek": "",
-    "Kimi": "",
-    "智谱GML": "",
-    "阿里千问": "",
-    "MINIMAX": "",
-    "Claude中转": ""
+    "Claude官方接口": ""
   },
   "project_path": "",
   "recent_projects": [],
@@ -15,15 +9,35 @@
     "Claude官方接口": {
       "base_url": "",
       "token": "",
-      "anthropic_model": "MiniMax-M3",
-      "default_opus_model": "MiniMax-M3",
-      "default_sonnet_model": "MiniMax-M3",
-      "default_haiku_model": "MiniMax-M3",
-      "subagent_model": "MiniMax-M3",
-      "effort_level": "max",
+      "anthropic_model": "",
+      "default_opus_model": "",
+      "default_sonnet_model": "",
+      "default_haiku_model": "",
+      "subagent_model": "",
+      "effort_level": "",
       "enable_tool_search": "",
       "disable_nonessential_traffic": "",
-      "api_timeout_ms": ""
+      "api_timeout_ms": "",
+      "proxy": {
+        "http": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "https": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "socks5": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        }
+      }
     },
     "DeepSeek": {
       "base_url": "",
@@ -36,7 +50,27 @@
       "effort_level": "",
       "enable_tool_search": "false",
       "disable_nonessential_traffic": "1",
-      "api_timeout_ms": "3000000"
+      "api_timeout_ms": "3000000",
+      "proxy": {
+        "http": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "https": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "socks5": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        }
+      }
     },
     "Kimi": {
       "base_url": "",
@@ -49,7 +83,27 @@
       "effort_level": "",
       "enable_tool_search": "false",
       "disable_nonessential_traffic": "1",
-      "api_timeout_ms": "3000000"
+      "api_timeout_ms": "3000000",
+      "proxy": {
+        "http": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "https": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "socks5": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        }
+      }
     },
     "智谱GML": {
       "base_url": "",
@@ -62,7 +116,27 @@
       "effort_level": "",
       "enable_tool_search": "false",
       "disable_nonessential_traffic": "1",
-      "api_timeout_ms": "3000000"
+      "api_timeout_ms": "3000000",
+      "proxy": {
+        "http": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "https": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "socks5": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        }
+      }
     },
     "阿里千问": {
       "base_url": "",
@@ -75,20 +149,60 @@
       "effort_level": "",
       "enable_tool_search": "false",
       "disable_nonessential_traffic": "1",
-      "api_timeout_ms": "3000000"
+      "api_timeout_ms": "3000000",
+      "proxy": {
+        "http": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "https": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "socks5": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        }
+      }
     },
     "MINIMAX": {
-      "base_url": "https://api.minimaxi.com/anthropic",
+      "base_url": "",
       "token": "",
-      "anthropic_model": "MiniMax-M3",
-      "default_opus_model": "MiniMax-M3",
-      "default_sonnet_model": "MiniMax-M3",
-      "default_haiku_model": "MiniMax-M3",
-      "subagent_model": "MiniMax-M3",
-      "effort_level": "max",
-      "enable_tool_search": "",
+      "anthropic_model": "",
+      "default_opus_model": "",
+      "default_sonnet_model": "",
+      "default_haiku_model": "",
+      "subagent_model": "",
+      "effort_level": "",
+      "enable_tool_search": "false",
       "disable_nonessential_traffic": "1",
-      "api_timeout_ms": "3000000"
+      "api_timeout_ms": "3000000",
+      "proxy": {
+        "http": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "https": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "socks5": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        }
+      }
     },
     "Claude中转": {
       "base_url": "",
@@ -101,7 +215,27 @@
       "effort_level": "",
       "enable_tool_search": "false",
       "disable_nonessential_traffic": "1",
-      "api_timeout_ms": "3000000"
+      "api_timeout_ms": "3000000",
+      "proxy": {
+        "http": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "https": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        },
+        "socks5": {
+          "enabled": false,
+          "host": "",
+          "port": "",
+          "auth": ""
+        }
+      }
     }
   }
 }
