@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-APP_NAME = "Claude-Code模型管理器v1.7"
+APP_NAME = "Claude-Code模型管理器v1.8"
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT_DIR / "config.json"
