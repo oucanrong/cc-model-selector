@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-APP_NAME = "Claude-Code模型管理器v1.5"
+APP_NAME = "Claude-Code模型管理器v1.6"
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT_DIR / "config.json"
@@ -28,7 +28,8 @@ PROVIDER_CLAUDE_DEFAULT = "Claude官方接口"
 PROVIDER_DEEPSEEK = "DeepSeek"
 PROVIDER_KIMI = "Kimi"
 PROVIDER_ZHIPU = "智谱GML"
-PROVIDER_QWEN = "千问"
+PROVIDER_QWEN = "阿里千问"
+PROVIDER_MINIMAX = "MINIMAX"
 PROVIDER_CLAUDE_RELAY = "Claude中转"
 
 PROVIDER_OPTIONS = [
@@ -37,6 +38,7 @@ PROVIDER_OPTIONS = [
     PROVIDER_KIMI,
     PROVIDER_ZHIPU,
     PROVIDER_QWEN,
+    PROVIDER_MINIMAX,
     PROVIDER_CLAUDE_RELAY,
 ]
 
@@ -60,16 +62,16 @@ class ProviderPreset:
     # Kimi 专用：ENABLE_TOOL_SEARCH 下拉框选项
     enable_tool_search_options: tuple[str, ...] = ("false",)
     enable_tool_search_default: str = "false"
-    # GML5 专用：是否显示 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 参数
+    # GML5 / MINIMAX 专用：是否显示 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 参数
     show_disable_nonessential_traffic: bool = False
-    # GML5 专用：CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 下拉框选项
+    # GML5 / MINIMAX 专用：CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 下拉框选项
     disable_nonessential_traffic_options: tuple[str, ...] = ("1",)
     disable_nonessential_traffic_default: str = "1"
-    # GML5 专用：是否显示 API_TIMEOUT_MS 参数
+    # GML5 / MINIMAX 专用：是否显示 API_TIMEOUT_MS 参数
     show_api_timeout_ms: bool = False
-    # GML5 专用：API_TIMEOUT_MS 默认值
+    # GML5 / MINIMAX 专用：API_TIMEOUT_MS 默认值
     api_timeout_ms_default: str = "3000000"
-    # 是否隐藏 CLAUDE_CODE_EFFORT_LEVEL（Kimi / GML5 / 千问 不再显示该参数）
+    # 是否隐藏 CLAUDE_CODE_EFFORT_LEVEL（Kimi / GML5 / 阿里千问 / MINIMAX 不再显示该参数）
     hide_effort_level: bool = False
 
 
@@ -153,6 +155,26 @@ PROVIDER_PRESETS: dict[str, ProviderPreset] = {
         parameters_enabled=True,
         base_url_editable=True,
         show_base_url_in_main=False,
+        hide_effort_level=True,
+    ),
+    PROVIDER_MINIMAX: ProviderPreset(
+        base_url="https://api.minimaxi.com/anthropic",
+        model_options=("MiniMax-M3",),
+        anthropic_model_default="MiniMax-M3",
+        default_opus_model_default="MiniMax-M3",
+        default_sonnet_model_default="MiniMax-M3",
+        default_haiku_model_default="MiniMax-M3",
+        subagent_model_default="MiniMax-M3",
+        effort_level_options=("max",),
+        effort_level_default="max",
+        parameters_enabled=True,
+        base_url_editable=True,
+        show_base_url_in_main=False,
+        show_disable_nonessential_traffic=True,
+        disable_nonessential_traffic_options=("1",),
+        disable_nonessential_traffic_default="1",
+        show_api_timeout_ms=True,
+        api_timeout_ms_default="3000000",
         hide_effort_level=True,
     ),
     PROVIDER_CLAUDE_RELAY: ProviderPreset(
