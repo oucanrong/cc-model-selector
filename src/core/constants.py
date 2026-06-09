@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import sys
 
-APP_NAME = "cc模型管理器v2.2"
+APP_NAME = "cc模型管理器v2.2.1"
 
 
 def application_root() -> Path:
