@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from PyQt6.QtCore import QSignalBlocker
 from PyQt6.QtWidgets import (
     QCheckBox,
     QFormLayout,
@@ -94,6 +95,24 @@ class ProxyGroup(QGroupBox):
         """启用/禁用所有代理行控件（启动时禁用，停止后恢复）。"""
         for row in (self.http, self.https, self.socks5):
             row.set_row_enabled(enabled)
+
+    def clear(self) -> None:
+        """清空全部代理参数。"""
+        for row in (self.http, self.https, self.socks5):
+            widgets = (
+                row.enabled,
+                row.host,
+                row.port,
+                row.username,
+                row.password,
+            )
+            blockers = [QSignalBlocker(widget) for widget in widgets]
+            row.enabled.setChecked(False)
+            row.host.clear()
+            row.port.clear()
+            row.username.clear()
+            row.password.clear()
+            del blockers
 
     def apply_config(self, config: AppConfig) -> None:
         self._apply_row(self.http, config.proxy.http)

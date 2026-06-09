@@ -19,6 +19,7 @@ class CodexWorkerTests(unittest.TestCase):
             token="test-api-key",
             model="qwen3.7-max" if provider == "阿里千问" else "mimo-v2.5-pro",
             reasoning_effort="medium",
+            thinking_enabled=False,
             proxy=ProxyConfig(),
         )
         worker = CodexWorker(
@@ -63,6 +64,9 @@ class CodexWorkerTests(unittest.TestCase):
         router.assert_called_once()
         router.return_value.start.assert_called_once()
         router.return_value.stop.assert_called_once()
+        self.assertFalse(
+            router.call_args.kwargs["capabilities"]["thinking_enabled"],
+        )
         call = worker.config_service.activate.call_args.kwargs
         self.assertEqual(call["base_url"], "http://127.0.0.1:54321/v1")
         self.assertNotIn(
@@ -70,18 +74,20 @@ class CodexWorkerTests(unittest.TestCase):
             process_manager.start.call_args.args[2],
         )
 
-    def test_desktop_provider_uses_gui_process_and_inherits_environment(self) -> None:
+    def test_direct_provider_does_not_receive_thinking_capability(self) -> None:
+        worker, _process_manager = self._worker("阿里千问")
+        with patch("src.workers.codex_worker.CodexProxyServer") as router:
+            worker._run_launch()
+        router.assert_not_called()
+
+    def test_desktop_provider_uses_gui_process_without_proxy_environment(self) -> None:
         worker, process_manager = self._worker("阿里千问")
         executable = Path(r"C:\Program Files\WindowsApps\OpenAI.Codex\app\Codex.exe")
         worker.launch_target = "desktop"
         worker.desktop_executable = executable
         worker.service.build_desktop_startup_context.return_value = (
             Path("."),
-            {
-                "HTTP_PROXY": "http://127.0.0.1:8090",
-                "HTTPS_PROXY": "https://127.0.0.1:8090",
-                "ALL_PROXY": "socks5://127.0.0.1:8090",
-            },
+            {"PATH": "test"},
             executable,
         )
         worker.service.is_desktop_running.return_value = False
@@ -94,9 +100,33 @@ class CodexWorkerTests(unittest.TestCase):
         process_manager.start_gui.assert_called_once()
         env = process_manager.start_gui.call_args.args[2]
         self.assertEqual(env[CODEX_API_KEY_ENV], "test-api-key")
-        self.assertIn("HTTP_PROXY", env)
-        self.assertIn("HTTPS_PROXY", env)
-        self.assertIn("ALL_PROXY", env)
+        self.assertNotIn("HTTP_PROXY", env)
+        self.assertNotIn("HTTPS_PROXY", env)
+        self.assertNotIn("ALL_PROXY", env)
+        worker.service.build_desktop_startup_context.assert_called_once_with(
+            executable,
+            ".",
+        )
+
+    def test_desktop_ignores_only_socks5_proxy(self) -> None:
+        worker, process_manager = self._worker("阿里千问")
+        executable = Path(r"C:\Apps\Codex.exe")
+        worker.launch_target = "desktop"
+        worker.desktop_executable = executable
+        worker.settings.proxy = ProxyConfig(
+            socks5=ProxyItem(enabled=True, host="127.0.0.1", port="8090"),
+        )
+        worker.service.build_desktop_startup_context.return_value = (
+            Path("."),
+            {},
+            executable,
+        )
+        worker.service.is_desktop_running.return_value = False
+        process_manager.start_gui.return_value.wait.return_value = 0
+
+        worker._run_launch()
+
+        process_manager.start_gui.assert_called_once()
 
     def test_vscode_provider_uses_gui_process_and_restores_config(self) -> None:
         worker, process_manager = self._worker("阿里千问")

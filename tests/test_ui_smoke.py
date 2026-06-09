@@ -26,7 +26,7 @@ class UiSmokeTests(unittest.TestCase):
         try:
             window.show()
             QApplication.processEvents()
-            self.assertEqual(APP_NAME, "cc模型管理器v2.1")
+            self.assertEqual(APP_NAME, "cc模型管理器v2.2")
             self.assertEqual(window.windowTitle(), APP_NAME)
             self.assertEqual(window.product_tabs.count(), 2)
             self.assertEqual(window.width(), 760)
@@ -128,7 +128,7 @@ class UiSmokeTests(unittest.TestCase):
                 ],
                 [
                     "启动Claude Code cli版",
-                    "启动vscode",
+                    "启动VS Code",
                     "升级Claude Code cli版",
                 ],
             )
@@ -144,10 +144,10 @@ class UiSmokeTests(unittest.TestCase):
                     )
                 ],
                 [
-                    "启动codex桌面版",
-                    "启动codex cli版",
-                    "启动vscode",
-                    "升级codex cli版",
+                    "启动Codex 桌面版",
+                    "启动Codex cli版",
+                    "启动VS Code",
+                    "升级Codex cli版",
                 ],
             )
             self.assertEqual(
@@ -362,6 +362,19 @@ class UiSmokeTests(unittest.TestCase):
             QApplication.processEvents()
             self.assertEqual(group.context_window_edit.text(), "512000")
             self.assertFalse(group.reasoning_combo.isVisible())
+            self.assertFalse(group.thinking_combo.isVisible())
+
+            group.provider_combo.setCurrentText("DeepSeek")
+            QApplication.processEvents()
+            self.assertEqual(
+                [
+                    group.reasoning_combo.itemText(index)
+                    for index in range(group.reasoning_combo.count())
+                ],
+                ["关闭", "high", "max"],
+            )
+            self.assertEqual(group.current_reasoning_effort(), "high")
+            self.assertFalse(group.thinking_combo.isVisible())
 
             group.provider_combo.setCurrentText("GPT中转")
             QApplication.processEvents()
@@ -374,6 +387,44 @@ class UiSmokeTests(unittest.TestCase):
                 )],
                 ["minimal", "low", "medium", "high", "xhigh"],
             )
+
+            for provider in (
+                "Kimi",
+                "智谱GLM",
+                "小米MiMo",
+            ):
+                window.config.codex.provider_settings[
+                    provider
+                ].reasoning_effort = "stale"
+                group.provider_combo.setCurrentText(provider)
+                QApplication.processEvents()
+                self.assertFalse(group.reasoning_combo.isVisible())
+                self.assertEqual(group.reasoning_combo.currentText(), "")
+                self.assertFalse(group.thinking_combo.isHidden())
+                self.assertEqual(group.thinking_combo.currentText(), "开启")
+                group.thinking_combo.setCurrentText("关闭")
+                window._sync_codex_config_from_ui()
+                self.assertEqual(
+                    window.config.codex.provider_settings[
+                        provider
+                    ].reasoning_effort,
+                    "",
+                )
+                self.assertFalse(
+                    window.config.codex.provider_settings[
+                        provider
+                    ].thinking_enabled,
+                )
+
+            for provider in ("MiniMax", "方舟Coding Plan"):
+                group.provider_combo.setCurrentText(provider)
+                QApplication.processEvents()
+                self.assertFalse(group.reasoning_combo.isVisible())
+                self.assertFalse(group.thinking_combo.isVisible())
+
+            group.provider_combo.setCurrentText("Kimi")
+            QApplication.processEvents()
+            self.assertEqual(group.thinking_combo.currentText(), "关闭")
         finally:
             window._loading = True
             window.close()
@@ -475,32 +526,53 @@ class UiSmokeTests(unittest.TestCase):
     def test_claude_vscode_target_only_shows_guidance_and_disables_start(self) -> None:
         window = MainWindow()
         try:
-            self.assertNotIn(
-                "用户需要自行在vscode中安装claude code插件。",
-                window.log_console.toPlainText(),
-            )
             with (
-                patch.object(window.config_manager, "save"),
+                patch.object(window.config_manager, "save") as save,
                 patch("src.ui.main_window._show_info_dialog") as dialog,
             ):
                 window.parameter_group.set_launch_target("cli")
+                for row in (
+                    window.proxy_group.http,
+                    window.proxy_group.https,
+                    window.proxy_group.socks5,
+                ):
+                    row.enabled.setChecked(True)
+                    row.host.setText("127.0.0.1")
+                    row.port.setText("8090")
+                    row.username.setText("user")
+                    row.password.setText("password")
                 window.parameter_group.set_launch_target("vscode")
                 window._autosave_timer.stop()
 
             dialog.assert_called_once_with(
                 window,
                 "VS Code使用说明",
-                "1. 请在vscode中删除claude code插件。"
-                "如果已删除或未安装，继续第2步。\n"
-                '2. 然后在启动目标中选择"启动Claude Code cli版"，'
+                "1. 请在VS Code中禁用或卸载Claude Code插件。"
+                "如果已禁用或卸载或未安装，继续第2步。\n"
+                "2. 选择工作目录。\n"
+                '3. 然后在启动目标中选择"启动Claude Code cli版"，'
                 "用于生成与修改项目代码。\n"
-                "3. 手动运行vscode，仅用于查看源代码与确认项目运行结果。",
+                "4. 手动运行VS Code，仅用于查看源代码与确认项目运行结果。",
             )
             self.assertFalse(window.start_btn.isEnabled())
-            self.assertNotIn(
-                "用户需要自行在vscode中安装claude code插件。",
-                window.log_console.toPlainText(),
-            )
+            self.assertFalse(window.proxy_group.http.enabled.isEnabled())
+            for row in (
+                window.proxy_group.http,
+                window.proxy_group.https,
+                window.proxy_group.socks5,
+            ):
+                self.assertFalse(row.enabled.isChecked())
+                self.assertEqual(row.host.text(), "")
+                self.assertEqual(row.port.text(), "")
+                self.assertEqual(row.username.text(), "")
+                self.assertEqual(row.password.text(), "")
+            self.assertFalse(window.config.proxy.http.enabled)
+            self.assertEqual(window.config.proxy.http.host, "")
+            self.assertFalse(window.config.proxy.https.enabled)
+            self.assertEqual(window.config.proxy.https.host, "")
+            self.assertFalse(window.config.proxy.socks5.enabled)
+            self.assertEqual(window.config.proxy.socks5.host, "")
+            save.assert_called()
             with (
                 patch.object(window, "start_claude") as start_cli,
                 patch.object(window, "upgrade_claude") as upgrade,
@@ -511,6 +583,10 @@ class UiSmokeTests(unittest.TestCase):
 
             window.parameter_group.set_launch_target("cli")
             self.assertTrue(window.start_btn.isEnabled())
+            self.assertTrue(window.proxy_group.http.enabled.isEnabled())
+            self.assertEqual(window.proxy_group.http.host.text(), "127.0.0.1")
+            self.assertEqual(window.proxy_group.http.port.text(), "8090")
+            self.assertTrue(window.proxy_group.http.enabled.isChecked())
             window.parameter_group.set_launch_target("upgrade")
             self.assertTrue(window.start_btn.isEnabled())
         finally:
@@ -524,29 +600,128 @@ class UiSmokeTests(unittest.TestCase):
                 window._loading = True
                 window.parameter_group.set_launch_target("vscode")
                 window._loading = False
-                window._sync_claude_start_button_state()
+                window._sync_claude_target_state()
             dialog.assert_not_called()
             self.assertFalse(window.start_btn.isEnabled())
+            self.assertFalse(window.proxy_group.http.enabled.isEnabled())
         finally:
             window._loading = True
             window.close()
 
-    def test_codex_vscode_target_logs_plugin_reminder(self) -> None:
+    def test_codex_targets_control_start_and_proxy_state(self) -> None:
         window = MainWindow()
         try:
-            self.assertNotIn(
-                "用户需要自行在vscode中安装codex插件。",
-                window.codex_log_console.toPlainText(),
-            )
-            with patch.object(window.config_manager, "save"):
+            with (
+                patch.object(window.config_manager, "save") as save,
+                patch("src.ui.main_window._show_info_dialog") as dialog,
+            ):
                 window.codex_parameter_group.set_launch_target("cli")
+                self.assertTrue(window.codex_start_btn.isEnabled())
+                self.assertTrue(window.codex_proxy_group.http.enabled.isEnabled())
+                window.codex_parameter_group.set_launch_target("desktop")
+                self.assertTrue(window.codex_start_btn.isEnabled())
+                self.assertFalse(window.codex_proxy_group.http.enabled.isEnabled())
+                window.codex_parameter_group.set_launch_target("cli")
+                for row in (
+                    window.codex_proxy_group.http,
+                    window.codex_proxy_group.https,
+                    window.codex_proxy_group.socks5,
+                ):
+                    row.enabled.setChecked(True)
+                    row.host.setText("127.0.0.1")
+                    row.port.setText("8090")
+                    row.username.setText("user")
+                    row.password.setText("password")
                 window.codex_parameter_group.set_launch_target("vscode")
                 window._autosave_timer.stop()
 
-            self.assertIn(
-                "用户需要自行在vscode中安装codex插件。",
-                window.codex_log_console.toPlainText(),
+            dialog.assert_called_once_with(
+                window,
+                "VS Code使用说明",
+                "1. 请在VS Code中禁用或卸载Codex插件。"
+                "如果已禁用或卸载或未安装，继续第2步。\n"
+                "2. 选择工作目录。\n"
+                '3. 在启动目标中选择"启动Codex 桌面版"或'
+                '"启动Codex cli版"，用于生成与修改项目代码。\n'
+                "4. 手动运行VS Code，仅用于查看源代码与确认项目运行结果。",
             )
+            self.assertFalse(window.codex_start_btn.isEnabled())
+            self.assertFalse(window.codex_proxy_group.http.enabled.isEnabled())
+            for row in (
+                window.codex_proxy_group.http,
+                window.codex_proxy_group.https,
+                window.codex_proxy_group.socks5,
+            ):
+                self.assertFalse(row.enabled.isChecked())
+                self.assertEqual(row.host.text(), "")
+                self.assertEqual(row.port.text(), "")
+                self.assertEqual(row.username.text(), "")
+                self.assertEqual(row.password.text(), "")
+            setting = window.config.codex.provider_settings[
+                window.config.codex.provider
+            ]
+            self.assertFalse(setting.proxy.http.enabled)
+            self.assertEqual(setting.proxy.http.host, "")
+            self.assertFalse(setting.proxy.https.enabled)
+            self.assertEqual(setting.proxy.https.host, "")
+            self.assertFalse(setting.proxy.socks5.enabled)
+            self.assertEqual(setting.proxy.socks5.host, "")
+            save.assert_called()
+            with patch.object(window, "_start_codex_target") as start:
+                window.start_selected_codex_target()
+            start.assert_called_once_with("vscode")
+            window.codex_parameter_group.set_launch_target("cli")
+            self.assertTrue(window.codex_start_btn.isEnabled())
+            self.assertTrue(window.codex_proxy_group.http.enabled.isEnabled())
+            self.assertEqual(window.codex_proxy_group.http.host.text(), "127.0.0.1")
+            self.assertEqual(window.codex_proxy_group.http.port.text(), "8090")
+            self.assertTrue(window.codex_proxy_group.http.enabled.isChecked())
+        finally:
+            window._loading = True
+            window.close()
+
+    def test_cli_and_upgrade_proxies_are_independent_for_both_products(self) -> None:
+        window = MainWindow()
+        try:
+            with patch.object(window.config_manager, "save"):
+                claude_setting = window.config.provider_settings[
+                    window.config.provider
+                ]
+                claude_setting.proxies["cli"] = type(window.config.proxy)()
+                claude_setting.proxies["upgrade"] = type(window.config.proxy)()
+                window.parameter_group.set_launch_target("cli")
+                window.proxy_group.http.enabled.setChecked(True)
+                window.proxy_group.http.host.setText("127.0.0.1")
+                window.proxy_group.http.port.setText("8001")
+                window.parameter_group.set_launch_target("upgrade")
+                self.assertEqual(window.proxy_group.http.host.text(), "")
+                window.proxy_group.http.enabled.setChecked(True)
+                window.proxy_group.http.host.setText("127.0.0.1")
+                window.proxy_group.http.port.setText("8002")
+                window.parameter_group.set_launch_target("cli")
+                self.assertEqual(window.proxy_group.http.port.text(), "8001")
+                window.parameter_group.set_launch_target("upgrade")
+                self.assertEqual(window.proxy_group.http.port.text(), "8002")
+
+                codex_setting = window.config.codex.provider_settings[
+                    window.config.codex.provider
+                ]
+                codex_setting.proxies["cli"] = type(codex_setting.proxy)()
+                codex_setting.proxies["upgrade"] = type(codex_setting.proxy)()
+                window.codex_parameter_group.set_launch_target("cli")
+                window.codex_proxy_group.https.enabled.setChecked(True)
+                window.codex_proxy_group.https.host.setText("127.0.0.1")
+                window.codex_proxy_group.https.port.setText("9001")
+                window.codex_parameter_group.set_launch_target("upgrade")
+                self.assertEqual(window.codex_proxy_group.https.host.text(), "")
+                window.codex_proxy_group.https.enabled.setChecked(True)
+                window.codex_proxy_group.https.host.setText("127.0.0.1")
+                window.codex_proxy_group.https.port.setText("9002")
+                window.codex_parameter_group.set_launch_target("cli")
+                self.assertEqual(window.codex_proxy_group.https.port.text(), "9001")
+                window.codex_parameter_group.set_launch_target("upgrade")
+                self.assertEqual(window.codex_proxy_group.https.port.text(), "9002")
+                window._autosave_timer.stop()
         finally:
             window._loading = True
             window.close()
@@ -554,6 +729,7 @@ class UiSmokeTests(unittest.TestCase):
     def test_official_proxy_confirmation_messages_are_exact(self) -> None:
         window = MainWindow()
         try:
+            window.proxy_group.clear()
             with patch(
                 "src.ui.main_window._show_confirm_dialog",
                 return_value=False,
@@ -562,8 +738,8 @@ class UiSmokeTests(unittest.TestCase):
             confirm.assert_called_once_with(
                 window,
                 "代理提示",
-                "如果不勾选http和https代理，有可能导致claude code运行异常或闪退。\n"
-                "点击确认继续，无代理启动claude code。",
+                "如果不勾选 HTTP 和 HTTPS 代理，有可能导致 Claude Code 运行异常或闪退。\n"
+                "点击确认继续，无代理启动 Claude Code。",
             )
 
             window.codex_parameter_group.provider_combo.setCurrentText(
@@ -605,8 +781,8 @@ class UiSmokeTests(unittest.TestCase):
             confirm.assert_called_once_with(
                 window,
                 "代理提示",
-                "如果不勾选http和https代理，有可能导致codex运行异常或闪退。\n"
-                "点击确认继续，无代理启动codex。",
+                "如果不勾选 HTTP 和 HTTPS 代理，有可能导致 Codex 运行异常或闪退。\n"
+                "点击确认继续，无代理启动 Codex。",
             )
             self.assertIsNone(window.codex_worker)
         finally:
@@ -630,8 +806,18 @@ class UiSmokeTests(unittest.TestCase):
                 window._autosave_timer.stop()
             self.assertEqual(extension_running.call_count, 2)
             self.assertEqual(info.call_count, 2)
+            expected_message = (
+                "检测到VS Code Codex插件正在运行中。\n"
+                "请先禁用或卸载VS Code中的Codex插件，然后手动重启VS Code。\n"
+                '再选择"启动Codex 桌面版"或"启动Codex cli版"，'
+                "用于创建和修改项目代码。\n"
+                "VS Code仅用于查看源代码与确认项目运行结果。"
+            )
             self.assertTrue(
-                all("Codex 插件正在运行" in call.args[2] for call in info.call_args_list)
+                all(
+                    call.args[2] == expected_message
+                    for call in info.call_args_list
+                )
             )
             self.assertIsNone(window.codex_worker)
 
@@ -666,6 +852,90 @@ class UiSmokeTests(unittest.TestCase):
                 window.start_codex_vscode()
                 window._autosave_timer.stop()
             extension_running.assert_not_called()
+        finally:
+            window._loading = True
+            window.close()
+
+    def test_running_claude_vscode_extension_blocks_cli_for_all_providers(self) -> None:
+        window = MainWindow()
+        try:
+            for provider in ("Claude官方接口", "DeepSeek"):
+                window.parameter_group.provider_combo.setCurrentText(provider)
+                with (
+                    patch.object(window.config_manager, "save"),
+                    patch.object(
+                        window.claude_service,
+                        "is_vscode_extension_running",
+                        return_value=True,
+                    ) as extension_running,
+                    patch.object(
+                        window.claude_service,
+                        "is_any_native_running",
+                    ) as native_running,
+                    patch("src.ui.main_window.QMessageBox.information") as info,
+                ):
+                    window.start_claude()
+                    window._autosave_timer.stop()
+
+                extension_running.assert_called_once()
+                native_running.assert_not_called()
+                info.assert_called_once()
+                self.assertEqual(
+                    info.call_args.args[2],
+                    "检测到VS Code Claude Code插件正在运行中。\n"
+                    "请先禁用或卸载VS Code中的Claude Code插件，"
+                    "然后手动重启VS Code。\n"
+                    '然后再选择"启动Claude Code cli版"，'
+                    "用于创建和修改项目代码。\n"
+                    "VS Code仅用于查看源代码与确认项目运行结果。",
+                )
+                self.assertIsNone(window.worker)
+        finally:
+            window._loading = True
+            window.close()
+
+    def test_codex_desktop_skips_proxy_validation_and_confirmation(self) -> None:
+        window = MainWindow()
+        try:
+            window.codex_parameter_group.set_launch_target("desktop")
+            window.codex_parameter_group.project_path_edit.setText(".")
+            window.codex_proxy_group.socks5.enabled.setChecked(True)
+            window.codex_proxy_group.socks5.host.setText("127.0.0.1")
+            window.codex_proxy_group.socks5.port.clear()
+            executable = Path(r"C:\Apps\Codex.exe")
+            with (
+                patch.object(window.config_manager, "save"),
+                patch.object(
+                    window.codex_service,
+                    "is_vscode_extension_running",
+                    return_value=False,
+                ),
+                patch.object(
+                    window.codex_service,
+                    "resolve_desktop_executable",
+                    return_value=executable,
+                ),
+                patch.object(
+                    window.codex_service,
+                    "is_any_desktop_running",
+                    return_value=False,
+                ),
+                patch.object(
+                    window.codex_service,
+                    "is_desktop_running",
+                    return_value=False,
+                ),
+                patch.object(window.codex_proxy_group, "validate") as validate,
+                patch("src.ui.main_window._show_confirm_dialog") as confirm,
+                patch("src.ui.main_window.CodexWorker") as worker_type,
+            ):
+                window.start_codex_desktop()
+                window._autosave_timer.stop()
+
+            validate.assert_not_called()
+            confirm.assert_not_called()
+            worker_type.assert_called_once()
+            worker_type.return_value.start.assert_called_once()
         finally:
             window._loading = True
             window.close()
@@ -745,6 +1015,7 @@ class UiSmokeTests(unittest.TestCase):
     def test_codex_launch_buttons_are_mutually_locked(self) -> None:
         window = MainWindow()
         try:
+            window.codex_parameter_group.set_launch_target("cli")
             window._lock_codex_ui()
             self.assertFalse(window.codex_start_btn.isEnabled())
             self.assertFalse(
@@ -797,8 +1068,11 @@ class UiSmokeTests(unittest.TestCase):
                 "upgrade": "upgrade_codex",
             }
             for target, method_name in codex_targets.items():
-                window.codex_parameter_group.set_launch_target(target)
-                with patch.object(window, method_name) as method:
+                with (
+                    patch("src.ui.main_window._show_info_dialog"),
+                    patch.object(window, method_name) as method,
+                ):
+                    window.codex_parameter_group.set_launch_target(target)
                     window.start_selected_codex_target()
                 method.assert_called_once()
         finally:

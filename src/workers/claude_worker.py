@@ -67,8 +67,8 @@ class ClaudeWorker(QThread):
         self.status_signal.emit("正在检查 Claude Code 更新 ...")
         self.log_signal.emit("[SYSTEM] 正在检查 Claude Code 更新 ...")
 
-        installed = self.service.get_installed_package_version()
-        latest = self.service.get_latest_package_version()
+        installed = self.service.get_installed_package_version(self.config.proxy)
+        latest = self.service.get_latest_package_version(self.config.proxy)
         if installed and latest and installed == latest:
             self.already_latest = True
             message = f"Claude Code 已是最新版本（{installed}），无须升级。"
@@ -76,6 +76,8 @@ class ClaudeWorker(QThread):
             self.log_signal.emit(f"[SYSTEM] {message}")
             return True
 
+        self.status_signal.emit("正在升级中")
+        self.log_signal.emit("[SYSTEM] Claude Code 正在升级中 ...")
         command = self.service.build_upgrade_command()
         kwargs: dict = {
             "stdout": subprocess.PIPE,
@@ -83,6 +85,7 @@ class ClaudeWorker(QThread):
             "text": True,
             "encoding": "utf-8",
             "errors": "replace",
+            "env": self.service.build_proxy_process_env(self.config.proxy),
         }
         if os.name == "nt":
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
@@ -171,7 +174,7 @@ class ClaudeWorker(QThread):
         self.log_signal.emit("[SYSTEM] 检测到 npm，正在通过淘宝源自动安装 Claude Code ...")
         self.install_progress_signal.emit(10, "正在安装 Claude Code，请稍候...")
 
-        result = self.service.install_claude_code()
+        result = self.service.install_claude_code(self.config.proxy)
 
         self.install_progress_signal.emit(80, "安装命令已执行，正在验证...")
 

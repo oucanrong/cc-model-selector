@@ -1,0 +1,68 @@
+{
+  "provider": "Claude官方接口",
+  "claude_launch_target": "cli",
+  "auth_tokens": {},
+  "project_path": "",
+  "recent_projects": [],
+  "vscode_path": "",
+  "provider_settings": {
+    "Claude官方接口": {
+      "base_url": "",
+      "token": "",
+      "proxies": {
+        "cli": {
+          "http": {"enabled": false, "host": "", "port": "", "auth": ""},
+          "https": {"enabled": false, "host": "", "port": "", "auth": ""},
+          "socks5": {"enabled": false, "host": "", "port": "", "auth": ""}
+        },
+        "vscode": {
+          "http": {"enabled": false, "host": "", "port": "", "auth": ""},
+          "https": {"enabled": false, "host": "", "port": "", "auth": ""},
+          "socks5": {"enabled": false, "host": "", "port": "", "auth": ""}
+        },
+        "upgrade": {
+          "http": {"enabled": false, "host": "", "port": "", "auth": ""},
+          "https": {"enabled": false, "host": "", "port": "", "auth": ""},
+          "socks5": {"enabled": false, "host": "", "port": "", "auth": ""}
+        }
+      }
+    }
+  },
+  "codex": {
+    "provider": "Codex官方接口",
+    "launch_target": "desktop",
+    "project_path": "",
+    "recent_projects": [],
+    "provider_settings": {
+      "Codex官方接口": {
+        "base_url": "",
+        "token": "",
+        "model": "",
+        "reasoning_effort": "",
+        "thinking_enabled": false,
+        "proxies": {
+          "desktop": {
+            "http": {"enabled": false, "host": "", "port": "", "auth": ""},
+            "https": {"enabled": false, "host": "", "port": "", "auth": ""},
+            "socks5": {"enabled": false, "host": "", "port": "", "auth": ""}
+          },
+          "cli": {
+            "http": {"enabled": false, "host": "", "port": "", "auth": ""},
+            "https": {"enabled": false, "host": "", "port": "", "auth": ""},
+            "socks5": {"enabled": false, "host": "", "port": "", "auth": ""}
+          },
+          "vscode": {
+            "http": {"enabled": false, "host": "", "port": "", "auth": ""},
+            "https": {"enabled": false, "host": "", "port": "", "auth": ""},
+            "socks5": {"enabled": false, "host": "", "port": "", "auth": ""}
+          },
+          "upgrade": {
+            "http": {"enabled": false, "host": "", "port": "", "auth": ""},
+            "https": {"enabled": false, "host": "", "port": "", "auth": ""},
+            "socks5": {"enabled": false, "host": "", "port": "", "auth": ""}
+          }
+        }
+      }
+    }
+  }
+}

@@ -11,11 +11,12 @@ from pathlib import Path
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from src.core.config_manager import CodexProviderSettings
+from src.core.config_manager import CodexProviderSettings, ProxyConfig
 from src.core.constants import (
     CODEX_API_KEY_ENV,
     CODEX_PROTOCOL_CHAT_PROXY,
     CODEX_PROTOCOL_RESPONSES_DIRECT,
+    CODEX_REASONING_CONTROL_TOGGLE,
     CODEX_PROVIDER_DEFAULTS,
     CODEX_PROVIDER_OFFICIAL,
     get_codex_context_window,
@@ -77,7 +78,7 @@ class CodexWorker(QThread):
             self.npm_not_found_signal.emit(self.service.node_download_url)
             return False
         self.status_signal.emit("未检测到 Codex CLI，正在自动安装 ...")
-        result = self.service.install()
+        result = self.service.install(self.settings.proxy)
         self._emit_output("INSTALL", result.stdout)
         self._emit_output("INSTALL-ERR", result.stderr)
         if result.returncode != 0 or not self.service.check_installed():
@@ -89,7 +90,12 @@ class CodexWorker(QThread):
 
     def _run_launch(self) -> None:
         try:
-            if codex_has_only_socks5(self.settings.proxy):
+            effective_proxy = (
+                ProxyConfig()
+                if self.launch_target == "desktop"
+                else self.settings.proxy
+            )
+            if codex_has_only_socks5(effective_proxy):
                 raise RuntimeError(
                     "Codex当前不能可靠地仅使用Socks5代理。"
                     "请启用HTTP或HTTPS代理后再启动。"
@@ -103,11 +109,20 @@ class CodexWorker(QThread):
                 self.settings.model,
             )
             if protocol == CODEX_PROTOCOL_CHAT_PROXY:
+                capabilities = dict(defaults.get("chat_reasoning", {}))
+                if (
+                    defaults["reasoning_control"]
+                    == CODEX_REASONING_CONTROL_TOGGLE
+                ):
+                    capabilities["thinking_enabled"] = (
+                        self.settings.thinking_enabled
+                    )
                 self.proxy_server = CodexProxyServer(
                     upstream_base_url=self.settings.base_url,
                     api_key=self.settings.token,
                     model=self.settings.model,
-                    proxy=self.settings.proxy,
+                    proxy=effective_proxy,
+                    capabilities=capabilities,
                     log=self.log_signal.emit,
                 )
                 self.proxy_server.start()
@@ -138,11 +153,10 @@ class CodexWorker(QThread):
 
             if self.launch_target == "desktop":
                 if self.desktop_executable is None:
-                    raise RuntimeError("未找到 Codex 桌面端程序。")
+                    raise RuntimeError("未找到 Codex 桌面版程序。")
                 cwd, env, executable = self.service.build_desktop_startup_context(
                     self.desktop_executable,
                     self.project_path,
-                    self.settings.proxy,
                 )
                 command_text = str(executable)
             elif self.launch_target == "vscode":
@@ -164,7 +178,7 @@ class CodexWorker(QThread):
             if protocol == CODEX_PROTOCOL_RESPONSES_DIRECT:
                 env[CODEX_API_KEY_ENV] = self.settings.token
             target_name = {
-                "desktop": "Codex 桌面端",
+                "desktop": "Codex 桌面版",
                 "vscode": "VS Code",
             }.get(self.launch_target, "Codex CLI")
             self.status_signal.emit(f"正在启动 {target_name}：{cwd}")
@@ -172,7 +186,7 @@ class CodexWorker(QThread):
             self.log_signal.emit(f"[SYSTEM] 启动程序：{command_text}")
             if self.launch_target == "desktop":
                 proc = self.process_manager.start_gui(executable, cwd, env)
-                self.status_signal.emit("Codex 桌面端已启动。")
+                self.status_signal.emit("Codex 桌面版已启动。")
             elif self.launch_target == "vscode":
                 proc = self.process_manager.start_gui(
                     self.vscode_executable,
@@ -215,8 +229,8 @@ class CodexWorker(QThread):
     def _run_upgrade(self) -> None:
         self.status_signal.emit("正在检查 Codex CLI 更新 ...")
         self.log_signal.emit("[SYSTEM] 正在检查 Codex CLI 更新 ...")
-        installed = self.service.get_installed_package_version()
-        latest = self.service.get_latest_package_version()
+        installed = self.service.get_installed_package_version(self.settings.proxy)
+        latest = self.service.get_latest_package_version(self.settings.proxy)
         if installed and latest and installed == latest:
             self.already_latest = True
             message = f"Codex CLI 已是最新版本（{installed}），无须升级。"
@@ -224,6 +238,8 @@ class CodexWorker(QThread):
             self.log_signal.emit(f"[SYSTEM] {message}")
             self.finished_signal.emit(0)
             return
+        self.status_signal.emit("正在升级中")
+        self.log_signal.emit("[SYSTEM] Codex CLI 正在升级中 ...")
         command = self.service.build_upgrade_command()
         kwargs: dict[str, object] = {
             "stdout": subprocess.PIPE,
@@ -231,6 +247,7 @@ class CodexWorker(QThread):
             "text": True,
             "encoding": "utf-8",
             "errors": "replace",
+            "env": self.service.build_proxy_process_env(self.settings.proxy),
         }
         if os.name == "nt":
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]

@@ -12,8 +12,9 @@ from pathlib import Path
 
 import psutil
 
-from src.core.config_manager import AppConfig
+from src.core.config_manager import AppConfig, ProxyConfig
 from .env_builder_service import build_env
+from .proxy_service import apply_proxy_env
 from .validator_service import validate_project_path
 
 # 淘宝 npm 镜像源
@@ -174,7 +175,10 @@ class ClaudeService:
         comspec = os.environ.get("COMSPEC") or shutil.which("cmd") or "cmd.exe"
         return [comspec, "/d", "/c", install_args]
 
-    def install_claude_code(self) -> subprocess.CompletedProcess[str]:
+    def install_claude_code(
+        self,
+        proxy: ProxyConfig | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         """
         使用淘宝源安装 Claude Code，隐藏命令行窗口（Windows）。
         """
@@ -187,6 +191,7 @@ class ClaudeService:
             "text": True,
             "encoding": "utf-8",
             "errors": "replace",
+            "env": self.build_proxy_process_env(proxy or ProxyConfig()),
         }
         if os.name == "nt":
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
@@ -222,13 +227,23 @@ class ClaudeService:
         comspec = os.environ.get("COMSPEC") or shutil.which("cmd") or "cmd.exe"
         return [comspec, "/d", "/c", upgrade_args]
 
-    def get_installed_package_version(self) -> str | None:
-        return self._get_npm_package_version(installed=True)
+    def get_installed_package_version(
+        self,
+        proxy: ProxyConfig | None = None,
+    ) -> str | None:
+        return self._get_npm_package_version(installed=True, proxy=proxy)
 
-    def get_latest_package_version(self) -> str | None:
-        return self._get_npm_package_version(installed=False)
+    def get_latest_package_version(
+        self,
+        proxy: ProxyConfig | None = None,
+    ) -> str | None:
+        return self._get_npm_package_version(installed=False, proxy=proxy)
 
-    def _get_npm_package_version(self, installed: bool) -> str | None:
+    def _get_npm_package_version(
+        self,
+        installed: bool,
+        proxy: ProxyConfig | None = None,
+    ) -> str | None:
         npm_args = (
             ["npm", "list", "-g", self.install_package, "--depth=0", "--json"]
             if installed
@@ -251,6 +266,7 @@ class ClaudeService:
             "text": True,
             "encoding": "utf-8",
             "errors": "replace",
+            "env": self.build_proxy_process_env(proxy or ProxyConfig()),
         }
         if os.name == "nt":
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
@@ -296,12 +312,35 @@ class ClaudeService:
         return project_path, env, command
 
     @staticmethod
+    def build_proxy_process_env(proxy: ProxyConfig) -> dict[str, str]:
+        env = os.environ.copy()
+        apply_proxy_env(env, proxy)
+        return env
+
+    @staticmethod
     def is_any_native_running() -> bool:
         for process in psutil.process_iter(["name"]):
             try:
                 if str(process.info.get("name") or "").casefold() == "claude.exe":
                     return True
             except psutil.Error:
+                continue
+        return False
+
+    @staticmethod
+    def is_vscode_extension_running() -> bool:
+        for process in psutil.process_iter(["name", "exe", "cmdline"]):
+            try:
+                command_line = " ".join(
+                    str(part) for part in (process.info.get("cmdline") or [])
+                )
+                process_text = " ".join(
+                    (str(process.info.get("exe") or ""), command_line)
+                ).replace("/", "\\").casefold()
+                marker = "\\.vscode\\extensions\\anthropic.claude-code-"
+                if marker in process_text and "\\claude.exe" in process_text:
+                    return True
+            except (OSError, psutil.Error):
                 continue
         return False
 

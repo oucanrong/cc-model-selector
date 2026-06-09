@@ -12,7 +12,7 @@ from pathlib import Path
 import psutil
 
 from src.core.config_manager import ProxyConfig
-from src.services.proxy_service import apply_proxy_env
+from src.services.proxy_service import PROXY_ENV_KEYS, apply_proxy_env
 from src.services.validator_service import validate_project_path
 
 
@@ -130,23 +130,19 @@ class CodexService:
 
     @staticmethod
     def is_vscode_extension_running() -> bool:
-        for process in psutil.process_iter(["name", "exe"]):
+        for process in psutil.process_iter(["name", "exe", "cmdline"]):
             try:
-                name = str(process.info.get("name") or "").casefold()
-                executable = (
-                    str(process.info.get("exe") or "")
-                    .replace("/", "\\")
-                    .casefold()
+                command_line = " ".join(
+                    str(part) for part in (process.info.get("cmdline") or [])
                 )
-                if name != "codex.exe":
-                    continue
+                process_text = " ".join(
+                    (str(process.info.get("exe") or ""), command_line)
+                ).replace("/", "\\").casefold()
                 marker = "\\.vscode\\extensions\\openai.chatgpt-"
-                marker_index = executable.find(marker)
-                if marker_index < 0:
-                    continue
-                extension_path = executable[marker_index + len(marker):]
-                if "\\bin\\" in extension_path and extension_path.endswith(
-                    "\\codex.exe"
+                if (
+                    marker in process_text
+                    and "\\bin\\" in process_text
+                    and "\\codex.exe" in process_text
                 ):
                     return True
             except (OSError, psutil.Error):
@@ -186,21 +182,37 @@ class CodexService:
             ]
         return [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", command_text]
 
-    def install(self) -> subprocess.CompletedProcess[str]:
-        result = self._run_hidden(self.build_install_command())
+    def install(
+        self,
+        proxy: ProxyConfig | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        result = self._run_hidden(
+            self.build_install_command(),
+            env=self.build_proxy_process_env(proxy or ProxyConfig()),
+        )
         self._resolved = None
         return result
 
     def build_upgrade_command(self) -> list[str]:
         return self.build_install_command(upgrade=True)
 
-    def get_installed_package_version(self) -> str | None:
-        return self._get_npm_package_version(installed=True)
+    def get_installed_package_version(
+        self,
+        proxy: ProxyConfig | None = None,
+    ) -> str | None:
+        return self._get_npm_package_version(installed=True, proxy=proxy)
 
-    def get_latest_package_version(self) -> str | None:
-        return self._get_npm_package_version(installed=False)
+    def get_latest_package_version(
+        self,
+        proxy: ProxyConfig | None = None,
+    ) -> str | None:
+        return self._get_npm_package_version(installed=False, proxy=proxy)
 
-    def _get_npm_package_version(self, installed: bool) -> str | None:
+    def _get_npm_package_version(
+        self,
+        installed: bool,
+        proxy: ProxyConfig | None = None,
+    ) -> str | None:
         npm_args = (
             ["npm", "list", "-g", self.install_package, "--depth=0", "--json"]
             if installed
@@ -218,7 +230,10 @@ class CodexService:
             comspec = os.environ.get("COMSPEC") or shutil.which("cmd") or "cmd.exe"
             command = [comspec, "/d", "/c", *npm_args]
         try:
-            result = self._run_hidden(command)
+            result = self._run_hidden(
+                command,
+                env=self.build_proxy_process_env(proxy or ProxyConfig()),
+            )
         except OSError:
             return None
         if result.returncode != 0:
@@ -235,7 +250,10 @@ class CodexService:
         return str(version).strip() if version else None
 
     @staticmethod
-    def _run_hidden(command: list[str]) -> subprocess.CompletedProcess[str]:
+    def _run_hidden(
+        command: list[str],
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         kwargs: dict[str, object] = {
             "check": False,
             "capture_output": True,
@@ -243,9 +261,17 @@ class CodexService:
             "encoding": "utf-8",
             "errors": "replace",
         }
+        if env is not None:
+            kwargs["env"] = env
         if os.name == "nt":
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
         return subprocess.run(command, **kwargs)
+
+    @staticmethod
+    def build_proxy_process_env(proxy: ProxyConfig) -> dict[str, str]:
+        env = os.environ.copy()
+        apply_proxy_env(env, proxy, for_codex=True)
+        return env
 
     def build_startup_context(
         self,
@@ -267,9 +293,9 @@ class CodexService:
         self,
         executable: Path,
         project_path: str,
-        proxy: ProxyConfig,
     ) -> tuple[Path, dict[str, str], Path]:
         cwd = validate_project_path(project_path)
         env = os.environ.copy()
-        apply_proxy_env(env, proxy, for_codex=True)
+        for key in PROXY_ENV_KEYS:
+            env.pop(key, None)
         return cwd, env, executable

@@ -13,8 +13,10 @@ import httpx
 from src.core.config_manager import ProxyConfig
 from src.services.codex_protocol import (
     ChatStreamToResponses,
+    ResponseHistoryCache,
     chat_to_response,
     iter_sse_json,
+    normalize_error,
     responses_to_chat,
 )
 from src.services.proxy_service import build_proxy_env
@@ -27,13 +29,16 @@ class CodexProxyServer:
         api_key: str,
         model: str,
         proxy: ProxyConfig,
+        capabilities: dict[str, Any] | None = None,
         log: Callable[[str], None] | None = None,
     ) -> None:
         self.upstream_base_url = upstream_base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
         self.proxy = proxy
+        self.capabilities = capabilities or {}
         self.log = log or (lambda _message: None)
+        self.history = ResponseHistoryCache(max_entries=512)
         self._server: ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
 
@@ -63,10 +68,13 @@ class CodexProxyServer:
                     self._send_json(404, {"error": {"message": "Not found"}})
 
             def do_POST(self) -> None:
-                if not (
-                    self.path.startswith("/responses")
-                    or self.path.startswith("/v1/responses")
-                ):
+                path = self.path.split("?", 1)[0].rstrip("/")
+                if path not in {
+                    "/responses",
+                    "/v1/responses",
+                    "/responses/compact",
+                    "/v1/responses/compact",
+                }:
                     self._send_json(404, {"error": {"message": "Not found"}})
                     return
                 try:
@@ -75,7 +83,8 @@ class CodexProxyServer:
                     owner._forward(self, body)
                 except Exception as exc:
                     owner.log(f"[ROUTER-ERROR] {exc}")
-                    self._send_json(502, {"error": {"message": str(exc)}})
+                    status = 400 if isinstance(exc, ValueError) else 502
+                    self._send_json(status, normalize_error(str(exc), status))
 
             def _send_json(self, status: int, value: dict[str, Any]) -> None:
                 data = json.dumps(value, ensure_ascii=False).encode("utf-8")
@@ -103,6 +112,7 @@ class CodexProxyServer:
             self._thread.join(timeout=3)
         self._server = None
         self._thread = None
+        self.history.clear()
 
     def _client(self) -> httpx.Client:
         proxy_env = build_proxy_env(self.proxy)
@@ -122,14 +132,29 @@ class CodexProxyServer:
         return f"{self.upstream_base_url}/chat/completions"
 
     def _forward(self, handler: BaseHTTPRequestHandler, body: dict[str, Any]) -> None:
-        chat_body = responses_to_chat(body, self.model)
-        custom_tools = {
-            tool.get("name")
-            for tool in body.get("tools", [])
-            if isinstance(tool, dict)
-            and tool.get("type") == "custom"
-            and isinstance(tool.get("name"), str)
-        }
+        call_ids = [
+            str(item.get("call_id") or "")
+            for item in body.get("input", [])
+            if isinstance(item, dict)
+            and item.get("type") in {
+                "function_call_output",
+                "custom_tool_call_output",
+                "tool_search_output",
+            }
+            and item.get("call_id")
+        ]
+        restored_calls = self.history.restore(
+            body.get("previous_response_id"),
+            call_ids,
+        )
+        tool_registry: dict[str, dict[str, str]] = {}
+        chat_body = responses_to_chat(
+            body,
+            self.model,
+            capabilities=self.capabilities,
+            tool_registry=tool_registry,
+            restored_calls=restored_calls,
+        )
         headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
@@ -142,8 +167,22 @@ class CodexProxyServer:
                 if response.is_error:
                     self._relay_error(handler, response)
                     return
-                upstream = response.json()
-                converted = chat_to_response(upstream, self.model, custom_tools)
+                try:
+                    upstream = response.json()
+                except json.JSONDecodeError:
+                    self._send_error(
+                        handler,
+                        502,
+                        normalize_error(response.content, 502),
+                    )
+                    return
+                converted = chat_to_response(
+                    upstream,
+                    self.model,
+                    tool_registry=tool_registry,
+                    capabilities=self.capabilities,
+                )
+                self.history.store(converted["id"], converted["output"])
                 data = json.dumps(converted, ensure_ascii=False).encode("utf-8")
                 handler.send_response(response.status_code)
                 handler.send_header("Content-Type", "application/json; charset=utf-8")
@@ -168,26 +207,58 @@ class CodexProxyServer:
                 handler.send_header("Cache-Control", "no-cache")
                 handler.send_header("Connection", "close")
                 handler.end_headers()
-                converter = ChatStreamToResponses(self.model, custom_tools)
+                converter = ChatStreamToResponses(
+                    self.model,
+                    tool_registry=tool_registry,
+                    capabilities=self.capabilities,
+                )
                 for event in converter.start_events():
                     handler.wfile.write(event)
                     handler.wfile.flush()
-                for chunk in iter_sse_json(response.iter_lines()):
-                    for event in converter.feed(chunk):
+                try:
+                    for chunk in iter_sse_json(response.iter_lines()):
+                        for event in converter.feed(chunk):
+                            handler.wfile.write(event)
+                            handler.wfile.flush()
+                        if converter.failed:
+                            break
+                    if converter.failed:
+                        handler.wfile.write(b"data: [DONE]\n\n")
+                        handler.wfile.flush()
+                        return
+                    for event in converter.finish_events():
                         handler.wfile.write(event)
                         handler.wfile.flush()
-                for event in converter.finish_events():
-                    handler.wfile.write(event)
+                    completed = converter.completed_response()
+                    self.history.store(completed["id"], completed["output"])
+                except Exception as exc:
+                    handler.wfile.write(
+                        converter.failed_event(normalize_error(str(exc), 502))
+                    )
+                    handler.wfile.write(b"data: [DONE]\n\n")
                     handler.wfile.flush()
 
     @staticmethod
     def _relay_error(handler: BaseHTTPRequestHandler, response: httpx.Response) -> None:
-        data = response.content
-        handler.send_response(response.status_code)
-        handler.send_header(
-            "Content-Type",
-            response.headers.get("Content-Type", "application/json"),
+        try:
+            value: Any = response.json()
+        except json.JSONDecodeError:
+            value = response.content
+        CodexProxyServer._send_error(
+            handler,
+            response.status_code,
+            normalize_error(value, response.status_code),
         )
+
+    @staticmethod
+    def _send_error(
+        handler: BaseHTTPRequestHandler,
+        status_code: int,
+        value: dict[str, Any],
+    ) -> None:
+        data = json.dumps(value, ensure_ascii=False).encode("utf-8")
+        handler.send_response(status_code)
+        handler.send_header("Content-Type", "application/json; charset=utf-8")
         handler.send_header("Content-Length", str(len(data)))
         handler.send_header("Connection", "close")
         handler.end_headers()

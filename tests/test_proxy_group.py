@@ -51,6 +51,24 @@ class ProxyGroupTests(unittest.TestCase):
             )
             row.enabled.setChecked(False)
 
+    def test_clear_removes_all_proxy_values(self) -> None:
+        group = ProxyGroup()
+        for row in (group.http, group.https, group.socks5):
+            row.enabled.setChecked(True)
+            row.host.setText("127.0.0.1")
+            row.port.setText("8090")
+            row.username.setText("user")
+            row.password.setText("password")
+
+        group.clear()
+
+        for row in (group.http, group.https, group.socks5):
+            self.assertFalse(row.enabled.isChecked())
+            self.assertEqual(row.host.text(), "")
+            self.assertEqual(row.port.text(), "")
+            self.assertEqual(row.username.text(), "")
+            self.assertEqual(row.password.text(), "")
+
 
 if __name__ == "__main__":
     unittest.main()

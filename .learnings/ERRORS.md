@@ -29,6 +29,88 @@ Retry the same read-only commands with the controlled sandbox escalation path.
 - **Notes**: Retried with approved read-only escalation and continued normally.
 
 ---
+## [ERR-20260608-004] rust_toolchain_unavailable
+
+**Logged**: 2026-06-08T22:12:00+08:00
+**Priority**: low
+**Status**: pending
+**Area**: tests
+
+### Summary
+The local environment cannot execute the `cc-switch` Rust tests because Cargo and rustc are not installed or not on PATH.
+
+### Error
+```
+The term 'cargo' is not recognized as a name of a cmdlet, function, script file, or executable program.
+The term 'rustc' is not recognized as a name of a cmdlet, function, script file, or executable program.
+```
+
+### Context
+- Attempted to verify the targeted protocol conversion tests in `cc-switch/src-tauri`.
+
+### Suggested Fix
+Install a Rust toolchain compatible with the repository's declared Rust 1.85 minimum before running Cargo tests.
+
+### Metadata
+- Reproducible: yes
+- Related Files: cc-switch/src-tauri/Cargo.toml
+
+---
+## [ERR-20260608-002] stale_python_virtualenv
+
+**Logged**: 2026-06-08T22:10:00+08:00
+**Priority**: medium
+**Status**: pending
+**Area**: tests
+
+### Summary
+The repository `.venv` cannot run because its base Python 3.14 executable no longer exists.
+
+### Error
+```
+did not find executable at 'C:\Users\oucan\AppData\Local\Programs\Python\Python314\python.exe'
+```
+
+### Context
+- Attempted to run the Codex protocol unit tests with `.venv\Scripts\python.exe`.
+- The checked-in workspace virtual environment is stale.
+
+### Suggested Fix
+Recreate `.venv` with the currently installed Python interpreter.
+
+### Metadata
+- Reproducible: yes
+- Related Files: .venv/pyvenv.cfg
+
+---
+
+## [ERR-20260608-003] nested_repo_dubious_ownership
+
+**Logged**: 2026-06-08T22:10:00+08:00
+**Priority**: low
+**Status**: pending
+**Area**: infra
+
+### Summary
+Git status for the nested `cc-switch` repository is blocked by sandbox ownership checks.
+
+### Error
+```
+fatal: detected dubious ownership in repository at 'C:/Users/oucan/Documents/vscode/claude_code模型管理器/cc-switch'
+```
+
+### Context
+- The workspace is running under the `CodexSandboxOffline` Windows account.
+- No global Git configuration was changed because repository inspection did not require it.
+
+### Suggested Fix
+Run Git for this repository under its owning user, or explicitly configure the directory as safe when needed.
+
+### Metadata
+- Reproducible: yes
+- Related Files: cc-switch/.git
+
+---
 
 ## [ERR-20260608-002] PowerShell GBK emoji output
 
@@ -275,5 +357,36 @@ Read the current file after an interruption before applying a patch based on pri
 ### Resolution
 - **Resolved**: 2026-06-07T00:00:00+08:00
 - **Notes**: Inspected the current files and only added the missing regression tests.
+
+---
+## [ERR-20260608-001] rg_unavailable
+
+**Logged**: 2026-06-08T22:00:00+08:00
+**Priority**: low
+**Status**: resolved
+**Area**: infra
+
+### Summary
+Repository search initially failed because ripgrep is not installed in the PowerShell environment.
+
+### Error
+```
+The term 'rg' is not recognized as a name of a cmdlet, function, script file, or executable program.
+```
+
+### Context
+- Attempted to locate Responses API and Chat Completions conversion code with `rg`.
+- Environment: Windows 11, PowerShell.
+
+### Suggested Fix
+Use `Get-ChildItem` with `Select-String` as the local fallback.
+
+### Metadata
+- Reproducible: yes
+- Related Files: .learnings/ERRORS.md
+
+### Resolution
+- **Resolved**: 2026-06-08T22:00:00+08:00
+- **Notes**: Continued repository inspection using native PowerShell search.
 
 ---

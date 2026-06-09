@@ -5,10 +5,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
-APP_NAME = "cc模型管理器v2.1"
+APP_NAME = "cc模型管理器v2.2"
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+
+def application_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[2]
+
+
+ROOT_DIR = application_root()
 CONFIG_PATH = ROOT_DIR / "config.json"
 LOG_DIR = ROOT_DIR / "logs"
 LOG_FILE = LOG_DIR / "app.log"
@@ -48,19 +56,22 @@ CODEX_PROTOCOL_OFFICIAL = "official"
 CODEX_PROTOCOL_CHAT_PROXY = "chat_proxy"
 CODEX_PROTOCOL_RESPONSES_DIRECT = "responses_direct"
 CODEX_API_KEY_ENV = "CC_MODEL_MANAGER_CODEX_API_KEY"
+CODEX_REASONING_CONTROL_NONE = "none"
+CODEX_REASONING_CONTROL_EFFORT = "effort"
+CODEX_REASONING_CONTROL_TOGGLE = "toggle"
 
 CLAUDE_LAUNCH_TARGET_DEFAULT = "cli"
 CLAUDE_LAUNCH_TARGET_OPTIONS = (
     ("cli", "启动Claude Code cli版"),
-    ("vscode", "启动vscode"),
+    ("vscode", "启动VS Code"),
     ("upgrade", "升级Claude Code cli版"),
 )
 CODEX_LAUNCH_TARGET_DEFAULT = "desktop"
 CODEX_LAUNCH_TARGET_OPTIONS = (
-    ("desktop", "启动codex桌面版"),
-    ("cli", "启动codex cli版"),
-    ("vscode", "启动vscode"),
-    ("upgrade", "升级codex cli版"),
+    ("desktop", "启动Codex 桌面版"),
+    ("cli", "启动Codex cli版"),
+    ("vscode", "启动VS Code"),
+    ("upgrade", "升级Codex cli版"),
 )
 
 CODEX_PROVIDER_OPTIONS = [
@@ -81,8 +92,10 @@ CODEX_PROVIDER_DEFAULTS = {
         "models": (),
         "default_model": "",
         "protocol": CODEX_PROTOCOL_OFFICIAL,
+        "reasoning_control": CODEX_REASONING_CONTROL_NONE,
         "reasoning_options": (),
         "default_reasoning_effort": "",
+        "default_thinking_enabled": False,
     },
     CODEX_PROVIDER_DEEPSEEK: {
         "base_url": "https://api.deepseek.com",
@@ -94,8 +107,25 @@ CODEX_PROVIDER_DEFAULTS = {
         },
         "context_window": 1_000_000,
         "protocol": CODEX_PROTOCOL_CHAT_PROXY,
-        "reasoning_options": ("low", "medium", "high", "xhigh"),
+        "reasoning_control": CODEX_REASONING_CONTROL_EFFORT,
+        "reasoning_options": ("none", "high", "max"),
         "default_reasoning_effort": "high",
+        "default_thinking_enabled": False,
+        "chat_reasoning": {
+            "thinking_param": "thinking",
+            "effort_param": "reasoning_effort",
+            "effort_map": {
+                "low": "high",
+                "medium": "high",
+                "xhigh": "max",
+            },
+            "response_fields": (
+                "reasoning_content",
+                "reasoning",
+                "reasoning_details",
+            ),
+            "tool_call_reasoning_required": True,
+        },
     },
     CODEX_PROVIDER_KIMI: {
         "base_url": "https://api.moonshot.cn/v1",
@@ -104,8 +134,21 @@ CODEX_PROVIDER_DEFAULTS = {
         "display_names": {"kimi-k2.6": "Kimi K2.6"},
         "context_window": 256_000,
         "protocol": CODEX_PROTOCOL_CHAT_PROXY,
+        "reasoning_control": CODEX_REASONING_CONTROL_TOGGLE,
         "reasoning_options": (),
         "default_reasoning_effort": "",
+        "default_thinking_enabled": True,
+        "chat_reasoning": {
+            "thinking_param": "thinking",
+            "effort_param": "",
+            "effort_map": {},
+            "response_fields": (
+                "reasoning_content",
+                "reasoning",
+                "reasoning_details",
+            ),
+            "tool_call_reasoning_required": True,
+        },
     },
     CODEX_PROVIDER_ZHIPU: {
         "base_url": "https://open.bigmodel.cn/api/paas/v4",
@@ -118,8 +161,21 @@ CODEX_PROVIDER_DEFAULTS = {
         },
         "context_window": 200_000,
         "protocol": CODEX_PROTOCOL_CHAT_PROXY,
-        "reasoning_options": ("low", "medium", "high", "xhigh"),
-        "default_reasoning_effort": "high",
+        "reasoning_control": CODEX_REASONING_CONTROL_TOGGLE,
+        "reasoning_options": (),
+        "default_reasoning_effort": "",
+        "default_thinking_enabled": True,
+        "chat_reasoning": {
+            "thinking_param": "thinking",
+            "effort_param": "",
+            "effort_map": {},
+            "response_fields": (
+                "reasoning_content",
+                "reasoning",
+                "reasoning_details",
+            ),
+            "tool_call_reasoning_required": True,
+        },
     },
     CODEX_PROVIDER_QWEN: {
         "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
@@ -136,10 +192,12 @@ CODEX_PROVIDER_DEFAULTS = {
             "qwen3.7-max": 1_000_000,
         },
         "protocol": CODEX_PROTOCOL_RESPONSES_DIRECT,
+        "reasoning_control": CODEX_REASONING_CONTROL_EFFORT,
         "provider_id": "qwen",
         "provider_name": "阿里千问",
         "reasoning_options": ("none", "minimal", "low", "medium", "high"),
         "default_reasoning_effort": "medium",
+        "default_thinking_enabled": False,
     },
     CODEX_PROVIDER_MINIMAX: {
         "base_url": "https://api.minimaxi.com/v1",
@@ -148,10 +206,12 @@ CODEX_PROVIDER_DEFAULTS = {
         "display_names": {"MiniMax-M3": "MiniMax M3"},
         "context_window": 512_000,
         "protocol": CODEX_PROTOCOL_RESPONSES_DIRECT,
+        "reasoning_control": CODEX_REASONING_CONTROL_NONE,
         "provider_id": "minimax",
         "provider_name": "MiniMax",
         "reasoning_options": (),
         "default_reasoning_effort": "",
+        "default_thinking_enabled": False,
     },
     CODEX_PROVIDER_XIAOMI_MIMO: {
         "base_url": "https://api.xiaomimimo.com/v1",
@@ -163,8 +223,21 @@ CODEX_PROVIDER_DEFAULTS = {
         },
         "context_window": 1_000_000,
         "protocol": CODEX_PROTOCOL_CHAT_PROXY,
+        "reasoning_control": CODEX_REASONING_CONTROL_TOGGLE,
         "reasoning_options": (),
         "default_reasoning_effort": "",
+        "default_thinking_enabled": True,
+        "chat_reasoning": {
+            "thinking_param": "thinking",
+            "effort_param": "",
+            "effort_map": {},
+            "response_fields": (
+                "reasoning_content",
+                "reasoning",
+                "reasoning_details",
+            ),
+            "tool_call_reasoning_required": False,
+        },
     },
     CODEX_PROVIDER_ARK_CODING: {
         "base_url": "https://ark.cn-beijing.volces.com/api/coding/v3",
@@ -181,8 +254,21 @@ CODEX_PROVIDER_DEFAULTS = {
         "default_model": "doubao-seed-2.0-code",
         "context_window": 256_000,
         "protocol": CODEX_PROTOCOL_CHAT_PROXY,
+        "reasoning_control": CODEX_REASONING_CONTROL_NONE,
         "reasoning_options": (),
         "default_reasoning_effort": "",
+        "default_thinking_enabled": False,
+        "chat_reasoning": {
+            "thinking_param": "thinking",
+            "effort_param": "",
+            "effort_map": {},
+            "response_fields": (
+                "reasoning_content",
+                "reasoning",
+                "reasoning_details",
+            ),
+            "tool_call_reasoning_required": False,
+        },
     },
     CODEX_PROVIDER_GPT_RELAY: {
         "base_url": "",
@@ -190,10 +276,12 @@ CODEX_PROVIDER_DEFAULTS = {
         "default_model": "gpt-5.5",
         "display_names": {"gpt-5.5": "GPT-5.5"},
         "protocol": CODEX_PROTOCOL_RESPONSES_DIRECT,
+        "reasoning_control": CODEX_REASONING_CONTROL_EFFORT,
         "provider_id": "gpt_relay",
         "provider_name": "GPT中转",
         "reasoning_options": ("minimal", "low", "medium", "high", "xhigh"),
         "default_reasoning_effort": "medium",
+        "default_thinking_enabled": False,
     },
 }
 

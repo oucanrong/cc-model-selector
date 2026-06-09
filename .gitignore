@@ -1,8 +1,15 @@
-# Python 编译缓存
+# Python 编译文件和缓存
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+
+# 测试、覆盖率和静态检查缓存
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 
 # 虚拟环境
 .venv/
@@ -10,14 +17,30 @@ venv/
 env/
 ENV/
 
+# uv 本地缓存和 Python 运行时
+.uv-cache/
+.uv-python/
+
 # PyInstaller 打包临时目录和成品目录
 build/
 dist/
 *.spec
 
-# VS Code 配置文件
+# 编辑器配置
 .vscode/
 .history/
 
 # 日志文件
 *.log
+
+# 本地环境变量
+.env
+.env.*
+!.env.example
+
+# 应用运行配置
+config.json
+
+# Windows 临时文件
+Thumbs.db
+Desktop.ini

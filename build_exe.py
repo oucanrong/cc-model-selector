@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.metadata as md
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -12,6 +13,7 @@ from pathlib import Path
 
 PROJECT_NAME = "cc模型管理器"
 ENTRY_POINT = "main.py"
+EXAMPLE_CONFIG = "config.example.json"
 
 # 代码里用到的运行时依赖 + 打包依赖
 DEPENDENCIES = [
@@ -34,24 +36,48 @@ def package_version(package_name: str) -> str:
     try:
         return md.version(package_name)
     except md.PackageNotFoundError:
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", package_name],
-            check=True,
-        )
+        install_packages([package_name])
         return md.version(package_name)
 
 
-def ensure_dependencies(packages: list[str]) -> None:
+def missing_packages(packages: list[str]) -> list[str]:
     missing: list[str] = []
     for package in packages:
         try:
             md.version(package)
         except md.PackageNotFoundError:
             missing.append(package)
+    return missing
 
+
+def install_packages(packages: list[str]) -> None:
+    if not packages:
+        return
+    uv = shutil.which("uv")
+    if uv:
+        command = [
+            uv,
+            "pip",
+            "install",
+            "--python",
+            sys.executable,
+            *packages,
+        ]
+    elif importlib.util.find_spec("pip") is not None:
+        command = [sys.executable, "-m", "pip", "install", *packages]
+    else:
+        raise RuntimeError(
+            "当前虚拟环境缺少 pip，系统中也未找到 uv。"
+            "请先安装 uv，或运行 python -m ensurepip。"
+        )
+    subprocess.run(command, check=True)
+
+
+def ensure_dependencies(packages: list[str]) -> None:
+    missing = missing_packages(packages)
     if missing:
         print(f"[INFO] 正在安装缺失依赖：{', '.join(missing)}")
-        subprocess.run([sys.executable, "-m", "pip", "install", *missing], check=True)
+        install_packages(missing)
 
 
 def generate_requirements(req_path: Path) -> list[str]:
@@ -67,10 +93,6 @@ def generate_requirements(req_path: Path) -> list[str]:
 
     req_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return lines
-
-
-def install_requirements(req_path: Path) -> None:
-    subprocess.run([sys.executable, "-m", "pip", "install", "-r", str(req_path)], check=True)
 
 
 def convert_webp_to_ico(webp_path: Path, ico_path: Path) -> None:
@@ -129,6 +151,13 @@ def build_pyinstaller_command(root: Path, icon_ico: Path) -> list[str]:
     return command
 
 
+def copy_distribution_files(root: Path, dist_dir: Path) -> None:
+    example_config = root / EXAMPLE_CONFIG
+    if not example_config.exists():
+        raise FileNotFoundError(f"未找到示例配置文件：{example_config}")
+    shutil.copy2(example_config, dist_dir / EXAMPLE_CONFIG)
+
+
 def main() -> None:
     if os.name != "nt":
         raise RuntimeError("该脚本面向 Windows 打包。")
@@ -144,9 +173,6 @@ def main() -> None:
     # 依赖版本写入 requirements.txt
     generate_requirements(req_path)
 
-    # 按 requirements.txt 再安装一次，保证环境版本一致
-    install_requirements(req_path)
-
     # 转换图标
     convert_webp_to_ico(webp_icon, ico_icon)
 
@@ -160,6 +186,7 @@ def main() -> None:
     subprocess.run(command, check=True)
 
     dist_dir = root / "dist" / PROJECT_NAME
+    copy_distribution_files(root, dist_dir)
     print(f"[OK] 打包完成：{dist_dir}")
 
 
