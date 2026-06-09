@@ -364,6 +364,22 @@ class UiSmokeTests(unittest.TestCase):
             self.assertFalse(group.reasoning_combo.isVisible())
             self.assertFalse(group.thinking_combo.isVisible())
 
+            group.provider_combo.setCurrentText("方舟Coding Plan")
+            QApplication.processEvents()
+            ark_context_windows = {
+                "doubao-seed-2.0-code": "256000",
+                "minimax-latest": "512000",
+                "glm-5.1": "200000",
+                "deepseek-v4-flash": "1000000",
+                "deepseek-v4-pro": "1000000",
+                "kimi-k2.6": "256000",
+            }
+            for model, expected in ark_context_windows.items():
+                group.model_combo.setCurrentText(model)
+                QApplication.processEvents()
+                self.assertEqual(group.context_window_edit.text(), expected)
+                self.assertTrue(group.context_window_edit.isReadOnly())
+
             group.provider_combo.setCurrentText("DeepSeek")
             QApplication.processEvents()
             self.assertEqual(

@@ -12,6 +12,7 @@ from src.core.constants import (
     CODEX_PROVIDER_DEFAULTS,
     CODEX_PROVIDER_OPTIONS,
     PROVIDER_OPTIONS,
+    get_codex_context_window,
 )
 from src.services.codex_config_service import CodexConfigService
 
@@ -153,6 +154,22 @@ class CodexConfigTests(unittest.TestCase):
             deepseek["chat_reasoning"]["effort_map"],
             {"low": "high", "medium": "high", "xhigh": "max"},
         )
+
+        ark_context_windows = {
+            "doubao-seed-2.0-code": 256_000,
+            "doubao-seed-2.0-pro": 256_000,
+            "doubao-seed-2.0-lite": 256_000,
+            "minimax-latest": 512_000,
+            "glm-5.1": 200_000,
+            "deepseek-v4-flash": 1_000_000,
+            "deepseek-v4-pro": 1_000_000,
+            "kimi-k2.6": 256_000,
+        }
+        for model, expected in ark_context_windows.items():
+            self.assertEqual(
+                get_codex_context_window("方舟Coding Plan", model),
+                expected,
+            )
 
     def test_legacy_deepseek_reasoning_effort_is_mapped(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

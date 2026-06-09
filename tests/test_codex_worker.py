@@ -74,6 +74,17 @@ class CodexWorkerTests(unittest.TestCase):
             process_manager.start.call_args.args[2],
         )
 
+    def test_ark_model_context_window_is_passed_to_codex_config(self) -> None:
+        worker, _process_manager = self._worker("方舟Coding Plan")
+        worker.settings.model = "deepseek-v4-pro"
+        with patch("src.workers.codex_worker.CodexProxyServer") as router:
+            router.return_value.base_url = "http://127.0.0.1:54321/v1"
+            worker._run_launch()
+        self.assertEqual(
+            worker.config_service.activate.call_args.kwargs["context_window"],
+            1_000_000,
+        )
+
     def test_direct_provider_does_not_receive_thinking_capability(self) -> None:
         worker, _process_manager = self._worker("阿里千问")
         with patch("src.workers.codex_worker.CodexProxyServer") as router:
