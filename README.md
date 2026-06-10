@@ -1,6 +1,7 @@
 # CC模型管理器
 
-`cc模型管理器` 是面向 Windows 的 Claude Code 与 Codex 图形化启动、鉴权和模型配置工具。它可以在一个界面中管理 API 供应商、模型、代理和工作目录，并启动桌面端、CLI 或 VS Code。简单来说，该工具能一键把各种国产大模型接入Codex或者Claude Code中。
+`cc模型管理器` 是面向 Windows 的 Claude Code 与 Codex 图形化启动、鉴权和模型配置工具。它可以在一个界面中管理 API 供应商、模型、代理和工作目录，并启动桌面端、CLI 或 VS Code。
+简单来说，该工具能一键把各种国产大模型接入Codex或者Claude Code中。
 
 ## 主要功能
 
