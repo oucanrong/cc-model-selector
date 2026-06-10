@@ -28,6 +28,7 @@ from .constants import (
     DEFAULT_RECENT_PROJECTS,
     PROVIDER_MINIMAX,
     PROVIDER_OPTIONS,
+    get_codex_reasoning_defaults,
     get_provider_preset,
 )
 
@@ -83,12 +84,21 @@ class ProviderSettings:
 
 
 @dataclass
+class CodexModelReasoningSettings:
+    reasoning_effort: str = ""
+    thinking_enabled: bool = False
+
+
+@dataclass
 class CodexProviderSettings:
     base_url: str = ""
     token: str = ""
     model: str = ""
     reasoning_effort: str = ""
     thinking_enabled: bool = True
+    model_reasoning: dict[str, CodexModelReasoningSettings] = field(
+        default_factory=dict
+    )
     proxies: dict[str, ProxyConfig] = field(default_factory=create_codex_target_proxies)
     proxy: ProxyConfig = field(default_factory=ProxyConfig, repr=False, compare=False)
 
@@ -106,11 +116,23 @@ def create_default_codex_config() -> CodexConfig:
     settings = {}
     for provider_name in CODEX_PROVIDER_OPTIONS:
         defaults = CODEX_PROVIDER_DEFAULTS[provider_name]
+        model_reasoning = {}
+        for model in defaults.get("model_reasoning", {}):
+            reasoning = get_codex_reasoning_defaults(provider_name, model)
+            model_reasoning[model] = CodexModelReasoningSettings(
+                reasoning_effort=str(reasoning["default_reasoning_effort"]),
+                thinking_enabled=bool(reasoning["default_thinking_enabled"]),
+            )
+        selected_reasoning = get_codex_reasoning_defaults(
+            provider_name,
+            str(defaults["default_model"]),
+        )
         settings[provider_name] = CodexProviderSettings(
             base_url=str(defaults["base_url"]),
             model=str(defaults["default_model"]),
-            reasoning_effort=str(defaults["default_reasoning_effort"]),
-            thinking_enabled=bool(defaults["default_thinking_enabled"]),
+            reasoning_effort=str(selected_reasoning["default_reasoning_effort"]),
+            thinking_enabled=bool(selected_reasoning["default_thinking_enabled"]),
+            model_reasoning=model_reasoning,
         )
     return CodexConfig(provider_settings=settings)
 
@@ -311,12 +333,14 @@ class ConfigManager:
         for provider_name in CODEX_PROVIDER_OPTIONS:
             raw = raw_codex_settings.get(provider_name) or {}
             defaults = CODEX_PROVIDER_DEFAULTS[provider_name]
-            reasoning_options = defaults["reasoning_options"]
+            model = str(raw.get("model", "") or defaults["default_model"])
+            selected_defaults = get_codex_reasoning_defaults(provider_name, model)
+            reasoning_options = selected_defaults["reasoning_options"]
             raw_reasoning_effort = str(
                 raw.get("reasoning_effort", "")
-                or defaults["default_reasoning_effort"]
+                or selected_defaults["default_reasoning_effort"]
             )
-            effort_map = defaults.get("chat_reasoning", {}).get(
+            effort_map = selected_defaults.get("chat_reasoning", {}).get(
                 "effort_map",
                 {},
             )
@@ -325,7 +349,58 @@ class ConfigManager:
                 raw_reasoning_effort,
             )
             if reasoning_effort not in reasoning_options:
-                reasoning_effort = str(defaults["default_reasoning_effort"])
+                reasoning_effort = str(
+                    selected_defaults["default_reasoning_effort"]
+                )
+            model_reasoning = {}
+            raw_model_reasoning = raw.get("model_reasoning") or {}
+            for model_name in defaults.get("model_reasoning", {}):
+                model_defaults = get_codex_reasoning_defaults(
+                    provider_name,
+                    model_name,
+                )
+                raw_model = raw_model_reasoning.get(model_name) or {}
+                model_options = model_defaults["reasoning_options"]
+                legacy_model_effort = str(
+                    raw_model.get("reasoning_effort", "")
+                )
+                model_effort = str(
+                    legacy_model_effort
+                    or model_defaults["default_reasoning_effort"]
+                )
+                if model_effort not in model_options:
+                    model_effort = str(
+                        model_defaults["default_reasoning_effort"]
+                    )
+                thinking_enabled = (
+                    bool(raw_model.get("thinking_enabled"))
+                    if "thinking_enabled" in raw_model
+                    else bool(model_defaults["default_thinking_enabled"])
+                )
+                if (
+                    model_name.startswith("deepseek-v4-")
+                    and legacy_model_effort
+                ):
+                    thinking_enabled = legacy_model_effort not in {
+                        "minimal",
+                        "none",
+                        "off",
+                        "disabled",
+                    }
+                model_reasoning[model_name] = CodexModelReasoningSettings(
+                    reasoning_effort=model_effort if model_options else "",
+                    thinking_enabled=thinking_enabled,
+                )
+            selected_model_reasoning = model_reasoning.get(model)
+            if selected_model_reasoning is not None:
+                reasoning_effort = selected_model_reasoning.reasoning_effort
+                thinking_enabled = selected_model_reasoning.thinking_enabled
+            else:
+                thinking_enabled = (
+                    bool(raw.get("thinking_enabled"))
+                    if "thinking_enabled" in raw
+                    else bool(selected_defaults["default_thinking_enabled"])
+                )
             proxies = create_codex_target_proxies()
             for target, proxy_data in (raw.get("proxies") or {}).items():
                 if target not in proxies or target in {"desktop", "vscode"}:
@@ -338,13 +413,10 @@ class ConfigManager:
             codex_settings[provider_name] = CodexProviderSettings(
                 base_url=str(raw.get("base_url", "") or defaults["base_url"]),
                 token=str(raw.get("token", "") or ""),
-                model=str(raw.get("model", "") or defaults["default_model"]),
+                model=model,
                 reasoning_effort=reasoning_effort if reasoning_options else "",
-                thinking_enabled=(
-                    bool(raw.get("thinking_enabled"))
-                    if "thinking_enabled" in raw
-                    else bool(defaults["default_thinking_enabled"])
-                ),
+                thinking_enabled=thinking_enabled,
+                model_reasoning=model_reasoning,
                 proxies=proxies,
                 proxy=copy.deepcopy(proxies[codex_launch_target]),
             )
@@ -450,6 +522,10 @@ class ConfigManager:
                 "model": setting.model,
                 "reasoning_effort": setting.reasoning_effort,
                 "thinking_enabled": setting.thinking_enabled,
+                "model_reasoning": {
+                    model: asdict(reasoning)
+                    for model, reasoning in setting.model_reasoning.items()
+                },
                 "proxies": {
                     target: {
                         "http": asdict(proxy.http),

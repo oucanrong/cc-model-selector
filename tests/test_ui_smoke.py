@@ -354,9 +354,11 @@ class UiSmokeTests(unittest.TestCase):
                 ["none", "minimal", "low", "medium", "high"],
             )
             self.assertEqual(group.reasoning_combo.currentText(), "medium")
+            group.reasoning_combo.setCurrentText("high")
             group.model_combo.setCurrentText("qwen3.6-flash")
             QApplication.processEvents()
             self.assertEqual(group.context_window_edit.text(), "256000")
+            self.assertEqual(group.reasoning_combo.currentText(), "high")
 
             group.provider_combo.setCurrentText("MiniMax")
             QApplication.processEvents()
@@ -370,8 +372,8 @@ class UiSmokeTests(unittest.TestCase):
                 "doubao-seed-2.0-code": "256000",
                 "minimax-latest": "512000",
                 "glm-5.1": "200000",
-                "deepseek-v4-flash": "1000000",
-                "deepseek-v4-pro": "1000000",
+                "deepseek-v4-flash": "1024000",
+                "deepseek-v4-pro": "1024000",
                 "kimi-k2.6": "256000",
             }
             for model, expected in ark_context_windows.items():
@@ -379,6 +381,45 @@ class UiSmokeTests(unittest.TestCase):
                 QApplication.processEvents()
                 self.assertEqual(group.context_window_edit.text(), expected)
                 self.assertTrue(group.context_window_edit.isReadOnly())
+
+            group.model_combo.setCurrentText("doubao-seed-2.0-code")
+            QApplication.processEvents()
+            self.assertFalse(group.reasoning_combo.isHidden())
+            self.assertEqual(
+                [
+                    group.reasoning_combo.itemText(index)
+                    for index in range(group.reasoning_combo.count())
+                ],
+                ["minimal", "low", "medium", "high"],
+            )
+            self.assertEqual(group.reasoning_combo.currentText(), "medium")
+            self.assertTrue(group.thinking_combo.isHidden())
+
+            group.model_combo.setCurrentText("deepseek-v4-pro")
+            QApplication.processEvents()
+            self.assertTrue(group.reasoning_combo.isHidden())
+            self.assertFalse(group.thinking_combo.isHidden())
+            self.assertEqual(group.thinking_combo.currentText(), "开启")
+            group.thinking_combo.setCurrentText("关闭")
+
+            group.model_combo.setCurrentText("glm-5.1")
+            QApplication.processEvents()
+            self.assertTrue(group.reasoning_combo.isHidden())
+            self.assertFalse(group.thinking_combo.isHidden())
+            self.assertEqual(group.thinking_combo.currentText(), "开启")
+            group.thinking_combo.setCurrentText("关闭")
+
+            group.model_combo.setCurrentText("deepseek-v4-pro")
+            QApplication.processEvents()
+            self.assertEqual(group.thinking_combo.currentText(), "关闭")
+            group.model_combo.setCurrentText("glm-5.1")
+            QApplication.processEvents()
+            self.assertEqual(group.thinking_combo.currentText(), "关闭")
+
+            group.model_combo.setCurrentText("minimax-latest")
+            QApplication.processEvents()
+            self.assertTrue(group.reasoning_combo.isHidden())
+            self.assertTrue(group.thinking_combo.isHidden())
 
             group.provider_combo.setCurrentText("DeepSeek")
             QApplication.processEvents()
@@ -432,7 +473,7 @@ class UiSmokeTests(unittest.TestCase):
                     ].thinking_enabled,
                 )
 
-            for provider in ("MiniMax", "方舟Coding Plan"):
+            for provider in ("MiniMax",):
                 group.provider_combo.setCurrentText(provider)
                 QApplication.processEvents()
                 self.assertFalse(group.reasoning_combo.isVisible())

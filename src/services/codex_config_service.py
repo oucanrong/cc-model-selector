@@ -52,6 +52,11 @@ class CodexConfigService:
         provider_name: str = "CC Model Manager Local Router",
         reasoning_effort: str = "high",
         env_key: str | None = None,
+        reasoning_options: tuple[str, ...] | None = None,
+        input_modalities: tuple[str, ...] = ("text",),
+        effective_context_window_percent: int = 100,
+        supports_parallel_tool_calls: bool = False,
+        supports_reasoning_summaries: bool | None = None,
     ) -> None:
         if self._active:
             raise RuntimeError("Codex 配置已被当前进程接管。")
@@ -80,6 +85,12 @@ class CodexConfigService:
             model=model,
             display_name=display_name or model,
             context_window=context_window,
+            reasoning_options=reasoning_options,
+            reasoning_effort=reasoning_effort,
+            input_modalities=input_modalities,
+            effective_context_window_percent=effective_context_window_percent,
+            supports_parallel_tool_calls=supports_parallel_tool_calls,
+            supports_reasoning_summaries=supports_reasoning_summaries,
         )
         self.catalog_path.write_text(
             json.dumps(catalog, ensure_ascii=False, indent=2),
@@ -215,6 +226,12 @@ class CodexConfigService:
         model: str,
         display_name: str,
         context_window: int,
+        reasoning_options: tuple[str, ...] | None,
+        reasoning_effort: str,
+        input_modalities: tuple[str, ...],
+        effective_context_window_percent: int,
+        supports_parallel_tool_calls: bool,
+        supports_reasoning_summaries: bool | None,
     ) -> dict[str, Any]:
         template = self._load_model_template()
         entry = dict(template)
@@ -228,9 +245,31 @@ class CodexConfigService:
                 "service_tiers": [],
                 "availability_nux": None,
                 "upgrade": None,
-                "input_modalities": ["text"],
+                "input_modalities": list(input_modalities),
+                "supports_parallel_tool_calls": supports_parallel_tool_calls,
+                "effective_context_window_percent": (
+                    effective_context_window_percent
+                ),
             }
         )
+        if reasoning_options is not None:
+            entry["supported_reasoning_levels"] = [
+                {"effort": effort, "description": effort}
+                for effort in reasoning_options
+            ]
+            entry["supports_reasoning_summaries"] = (
+                bool(reasoning_options)
+                if supports_reasoning_summaries is None
+                else supports_reasoning_summaries
+            )
+            if reasoning_options:
+                entry["default_reasoning_level"] = (
+                    reasoning_effort
+                    if reasoning_effort in reasoning_options
+                    else reasoning_options[0]
+                )
+            else:
+                entry.pop("default_reasoning_level", None)
         if context_window > 0:
             entry["context_window"] = context_window
             entry["max_context_window"] = context_window

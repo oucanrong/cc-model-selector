@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import sys
 
-APP_NAME = "cc模型管理器v2.2.1"
+APP_NAME = "cc模型管理器v2.3.0"
 
 
 def application_root() -> Path:
@@ -54,6 +54,7 @@ CODEX_PROVIDER_GPT_RELAY = "GPT中转"
 
 CODEX_PROTOCOL_OFFICIAL = "official"
 CODEX_PROTOCOL_CHAT_PROXY = "chat_proxy"
+CODEX_PROTOCOL_RESPONSES_PROXY = "responses_proxy"
 CODEX_PROTOCOL_RESPONSES_DIRECT = "responses_direct"
 CODEX_API_KEY_ENV = "CC_MODEL_MANAGER_CODEX_API_KEY"
 CODEX_REASONING_CONTROL_NONE = "none"
@@ -73,6 +74,61 @@ CODEX_LAUNCH_TARGET_OPTIONS = (
     ("vscode", "启动VS Code"),
     ("upgrade", "升级Codex cli版"),
 )
+
+
+def _chat_reasoning(
+    *,
+    thinking_param: str = "",
+    effort_param: str = "",
+    tool_call_reasoning_required: bool = False,
+) -> dict:
+    return {
+        "thinking_param": thinking_param,
+        "effort_param": effort_param,
+        "effort_map": {},
+        "response_fields": (
+            "reasoning_content",
+            "reasoning",
+            "reasoning_details",
+        ),
+        "tool_call_reasoning_required": tool_call_reasoning_required,
+    }
+
+
+def _model_reasoning(
+    control: str,
+    *,
+    options: tuple[str, ...] = (),
+    default_effort: str = "",
+    default_thinking: bool = False,
+    thinking_param: str = "",
+    effort_param: str = "",
+    tool_call_reasoning_required: bool = False,
+) -> dict:
+    return {
+        "reasoning_control": control,
+        "reasoning_options": options,
+        "default_reasoning_effort": default_effort,
+        "default_thinking_enabled": default_thinking,
+        "chat_reasoning": _chat_reasoning(
+            thinking_param=thinking_param,
+            effort_param=effort_param,
+            tool_call_reasoning_required=tool_call_reasoning_required,
+        ),
+    }
+
+
+def _model_metadata(
+    *,
+    input_modalities: tuple[str, ...] = ("text",),
+    effective_context_window_percent: int = 100,
+) -> dict:
+    return {
+        "input_modalities": input_modalities,
+        "effective_context_window_percent": effective_context_window_percent,
+        "supports_parallel_tool_calls": False,
+    }
+
 
 CODEX_PROVIDER_OPTIONS = [
     CODEX_PROVIDER_OFFICIAL,
@@ -259,15 +315,66 @@ CODEX_PROVIDER_DEFAULTS = {
             "doubao-seed-2.0-lite": 256_000,
             "minimax-latest": 512_000,
             "glm-5.1": 200_000,
-            "deepseek-v4-flash": 1_000_000,
-            "deepseek-v4-pro": 1_000_000,
+            "deepseek-v4-flash": 1_024_000,
+            "deepseek-v4-pro": 1_024_000,
             "kimi-k2.6": 256_000,
         },
-        "protocol": CODEX_PROTOCOL_CHAT_PROXY,
+        "protocol": CODEX_PROTOCOL_RESPONSES_PROXY,
         "reasoning_control": CODEX_REASONING_CONTROL_NONE,
         "reasoning_options": (),
         "default_reasoning_effort": "",
         "default_thinking_enabled": False,
+        "model_reasoning": {
+            model: _model_reasoning(
+                CODEX_REASONING_CONTROL_EFFORT,
+                options=("minimal", "low", "medium", "high"),
+                default_effort="medium",
+            )
+            for model in (
+                "doubao-seed-2.0-code",
+                "doubao-seed-2.0-pro",
+                "doubao-seed-2.0-lite",
+            )
+        } | {
+            "minimax-latest": _model_reasoning(
+                CODEX_REASONING_CONTROL_NONE,
+            ),
+            "glm-5.1": _model_reasoning(
+                CODEX_REASONING_CONTROL_TOGGLE,
+                default_thinking=True,
+            ),
+        } | {
+            model: _model_reasoning(
+                CODEX_REASONING_CONTROL_TOGGLE,
+                default_thinking=True,
+            )
+            for model in ("deepseek-v4-flash", "deepseek-v4-pro")
+        } | {
+            "kimi-k2.6": _model_reasoning(
+                CODEX_REASONING_CONTROL_TOGGLE,
+                default_thinking=True,
+            ),
+        },
+        "model_metadata": {
+            model: _model_metadata(
+                input_modalities=("text", "image"),
+                effective_context_window_percent=87,
+            )
+            for model in (
+                "doubao-seed-2.0-code",
+                "doubao-seed-2.0-pro",
+                "doubao-seed-2.0-lite",
+            )
+        } | {
+            model: _model_metadata()
+            for model in (
+                "minimax-latest",
+                "glm-5.1",
+                "deepseek-v4-flash",
+                "deepseek-v4-pro",
+                "kimi-k2.6",
+            )
+        },
         "chat_reasoning": {
             "thinking_param": "thinking",
             "effort_param": "",
@@ -304,6 +411,26 @@ def get_codex_context_window(provider: str, model: str) -> int | None:
         return int(value) if value is not None else None
     value = defaults.get("context_window")
     return int(value) if value is not None else None
+
+
+def get_codex_reasoning_defaults(provider: str, model: str) -> dict:
+    defaults = CODEX_PROVIDER_DEFAULTS[provider]
+    model_reasoning = defaults.get("model_reasoning")
+    if isinstance(model_reasoning, dict):
+        value = model_reasoning.get(model)
+        if isinstance(value, dict):
+            return value
+    return defaults
+
+
+def get_codex_model_metadata(provider: str, model: str) -> dict:
+    defaults = CODEX_PROVIDER_DEFAULTS[provider]
+    metadata = defaults.get("model_metadata")
+    if isinstance(metadata, dict):
+        value = metadata.get(model)
+        if isinstance(value, dict):
+            return value
+    return _model_metadata()
 
 PROVIDER_OPTIONS = [
     PROVIDER_CLAUDE_DEFAULT,

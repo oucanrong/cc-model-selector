@@ -15,15 +15,19 @@ from src.core.config_manager import CodexProviderSettings, ProxyConfig
 from src.core.constants import (
     CODEX_API_KEY_ENV,
     CODEX_PROTOCOL_CHAT_PROXY,
+    CODEX_PROTOCOL_RESPONSES_PROXY,
     CODEX_PROTOCOL_RESPONSES_DIRECT,
     CODEX_REASONING_CONTROL_TOGGLE,
     CODEX_PROVIDER_DEFAULTS,
     CODEX_PROVIDER_OFFICIAL,
     get_codex_context_window,
+    get_codex_model_metadata,
+    get_codex_reasoning_defaults,
 )
 from src.core.process_manager import ProcessManager
 from src.services.codex_config_service import CodexConfigService
 from src.services.codex_proxy_server import CodexProxyServer
+from src.services.codex_responses_proxy_server import CodexResponsesProxyServer
 from src.services.codex_service import CodexService
 from src.services.proxy_service import codex_has_only_socks5
 from src.services.vscode_service import VSCodeService
@@ -108,10 +112,20 @@ class CodexWorker(QThread):
                 self.provider,
                 self.settings.model,
             )
+            reasoning_defaults = get_codex_reasoning_defaults(
+                self.provider,
+                self.settings.model,
+            )
+            model_metadata = get_codex_model_metadata(
+                self.provider,
+                self.settings.model,
+            )
             if protocol == CODEX_PROTOCOL_CHAT_PROXY:
-                capabilities = dict(defaults.get("chat_reasoning", {}))
+                capabilities = dict(
+                    reasoning_defaults.get("chat_reasoning", {})
+                )
                 if (
-                    defaults["reasoning_control"]
+                    reasoning_defaults["reasoning_control"]
                     == CODEX_REASONING_CONTROL_TOGGLE
                 ):
                     capabilities["thinking_enabled"] = (
@@ -135,6 +149,46 @@ class CodexWorker(QThread):
                     ),
                     context_window=context_window or 128_000,
                     reasoning_effort=self.settings.reasoning_effort,
+                )
+            elif protocol == CODEX_PROTOCOL_RESPONSES_PROXY:
+                self.proxy_server = CodexResponsesProxyServer(
+                    upstream_base_url=self.settings.base_url,
+                    api_key=self.settings.token,
+                    model=self.settings.model,
+                    proxy=effective_proxy,
+                    reasoning_control=str(
+                        reasoning_defaults["reasoning_control"]
+                    ),
+                    reasoning_effort=self.settings.reasoning_effort,
+                    thinking_enabled=self.settings.thinking_enabled,
+                    log=self.log_signal.emit,
+                )
+                self.proxy_server.start()
+                self.config_service.activate(
+                    model=self.settings.model,
+                    base_url=self.proxy_server.base_url,
+                    display_name=str(
+                        defaults.get("display_names", {})
+                        .get(self.settings.model, self.settings.model)
+                    ),
+                    context_window=context_window or 0,
+                    reasoning_effort=self.settings.reasoning_effort,
+                    reasoning_options=tuple(
+                        reasoning_defaults["reasoning_options"]
+                    ),
+                    input_modalities=tuple(
+                        model_metadata["input_modalities"]
+                    ),
+                    effective_context_window_percent=int(
+                        model_metadata["effective_context_window_percent"]
+                    ),
+                    supports_parallel_tool_calls=bool(
+                        model_metadata["supports_parallel_tool_calls"]
+                    ),
+                    supports_reasoning_summaries=(
+                        reasoning_defaults["reasoning_control"]
+                        != "none"
+                    ),
                 )
             elif protocol == CODEX_PROTOCOL_RESPONSES_DIRECT:
                 self.config_service.activate(

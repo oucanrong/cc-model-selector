@@ -77,13 +77,51 @@ class CodexWorkerTests(unittest.TestCase):
     def test_ark_model_context_window_is_passed_to_codex_config(self) -> None:
         worker, _process_manager = self._worker("方舟Coding Plan")
         worker.settings.model = "deepseek-v4-pro"
-        with patch("src.workers.codex_worker.CodexProxyServer") as router:
+        with patch(
+            "src.workers.codex_worker.CodexResponsesProxyServer"
+        ) as router:
             router.return_value.base_url = "http://127.0.0.1:54321/v1"
             worker._run_launch()
         self.assertEqual(
             worker.config_service.activate.call_args.kwargs["context_window"],
-            1_000_000,
+            1_024_000,
         )
+
+    def test_ark_model_uses_model_specific_reasoning_capabilities(self) -> None:
+        cases = (
+            ("doubao-seed-2.0-code", "medium", False, "effort"),
+            ("deepseek-v4-pro", "", False, "toggle"),
+            ("glm-5.1", "", False, "toggle"),
+            ("kimi-k2.6", "", True, "toggle"),
+            ("minimax-latest", "", False, "none"),
+        )
+        for model, effort, thinking, control in cases:
+            with self.subTest(model=model):
+                worker, _process_manager = self._worker("方舟Coding Plan")
+                worker.settings.model = model
+                worker.settings.reasoning_effort = effort
+                worker.settings.thinking_enabled = thinking
+                with patch(
+                    "src.workers.codex_worker.CodexResponsesProxyServer"
+                ) as router:
+                    router.return_value.base_url = "http://127.0.0.1:54321/v1"
+                    worker._run_launch()
+                args = router.call_args.kwargs
+                self.assertEqual(args["reasoning_control"], control)
+                self.assertEqual(args["reasoning_effort"], effort)
+                self.assertEqual(args["thinking_enabled"], thinking)
+                activate = worker.config_service.activate.call_args.kwargs
+                if model.startswith("doubao-"):
+                    self.assertEqual(
+                        activate["input_modalities"],
+                        ("text", "image"),
+                    )
+                    self.assertEqual(
+                        activate["effective_context_window_percent"],
+                        87,
+                    )
+                else:
+                    self.assertEqual(activate["input_modalities"], ("text",))
 
     def test_direct_provider_does_not_receive_thinking_capability(self) -> None:
         worker, _process_manager = self._worker("阿里千问")

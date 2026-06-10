@@ -13,6 +13,8 @@ from src.core.constants import (
     CODEX_PROVIDER_OPTIONS,
     PROVIDER_OPTIONS,
     get_codex_context_window,
+    get_codex_model_metadata,
+    get_codex_reasoning_defaults,
 )
 from src.services.codex_config_service import CodexConfigService
 
@@ -161,8 +163,8 @@ class CodexConfigTests(unittest.TestCase):
             "doubao-seed-2.0-lite": 256_000,
             "minimax-latest": 512_000,
             "glm-5.1": 200_000,
-            "deepseek-v4-flash": 1_000_000,
-            "deepseek-v4-pro": 1_000_000,
+            "deepseek-v4-flash": 1_024_000,
+            "deepseek-v4-pro": 1_024_000,
             "kimi-k2.6": 256_000,
         }
         for model, expected in ark_context_windows.items():
@@ -170,6 +172,134 @@ class CodexConfigTests(unittest.TestCase):
                 get_codex_context_window("方舟Coding Plan", model),
                 expected,
             )
+        ark_effort_models = {
+            "doubao-seed-2.0-code": (
+                "minimal",
+                "low",
+                "medium",
+                "high",
+            ),
+            "doubao-seed-2.0-pro": (
+                "minimal",
+                "low",
+                "medium",
+                "high",
+            ),
+            "doubao-seed-2.0-lite": (
+                "minimal",
+                "low",
+                "medium",
+                "high",
+            ),
+        }
+        for model, options in ark_effort_models.items():
+            reasoning = get_codex_reasoning_defaults(
+                "方舟Coding Plan",
+                model,
+            )
+            self.assertEqual(reasoning["reasoning_control"], "effort")
+            self.assertEqual(reasoning["reasoning_options"], options)
+            self.assertEqual(reasoning["default_reasoning_effort"], "medium")
+            self.assertEqual(reasoning["chat_reasoning"]["effort_param"], "")
+
+        for model in (
+            "deepseek-v4-flash",
+            "deepseek-v4-pro",
+            "glm-5.1",
+            "kimi-k2.6",
+        ):
+            reasoning = get_codex_reasoning_defaults(
+                "方舟Coding Plan",
+                model,
+            )
+            self.assertEqual(reasoning["reasoning_control"], "toggle")
+            self.assertTrue(reasoning["default_thinking_enabled"])
+
+        self.assertEqual(
+            get_codex_reasoning_defaults(
+                "方舟Coding Plan",
+                "minimax-latest",
+            )["reasoning_control"],
+            "none",
+        )
+        self.assertEqual(
+            CODEX_PROVIDER_DEFAULTS["方舟Coding Plan"]["protocol"],
+            "responses_proxy",
+        )
+        doubao_metadata = get_codex_model_metadata(
+            "方舟Coding Plan",
+            "doubao-seed-2.0-code",
+        )
+        self.assertEqual(doubao_metadata["input_modalities"], ("text", "image"))
+        self.assertEqual(
+            doubao_metadata["effective_context_window_percent"],
+            87,
+        )
+        self.assertFalse(doubao_metadata["supports_parallel_tool_calls"])
+
+    def test_ark_model_reasoning_is_saved_and_reloaded_independently(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text("{}", encoding="utf-8")
+            manager = ConfigManager(path)
+            config = manager.load()
+            ark = config.codex.provider_settings["方舟Coding Plan"]
+            ark.model_reasoning[
+                "doubao-seed-2.0-code"
+            ].reasoning_effort = "low"
+            ark.model_reasoning["deepseek-v4-pro"].thinking_enabled = False
+            ark.model_reasoning["glm-5.1"].thinking_enabled = False
+            manager.save(config)
+
+            loaded = manager.load().codex.provider_settings["方舟Coding Plan"]
+            self.assertEqual(
+                loaded.model_reasoning[
+                    "doubao-seed-2.0-code"
+                ].reasoning_effort,
+                "low",
+            )
+            self.assertFalse(
+                loaded.model_reasoning["deepseek-v4-pro"].thinking_enabled,
+            )
+            self.assertFalse(
+                loaded.model_reasoning["glm-5.1"].thinking_enabled,
+            )
+            self.assertEqual(
+                loaded.model_reasoning["doubao-seed-2.0-pro"].reasoning_effort,
+                "medium",
+            )
+
+    def test_legacy_ark_deepseek_effort_migrates_to_thinking_toggle(self) -> None:
+        for effort, expected in (("minimal", False), ("max", True)):
+            with self.subTest(effort=effort), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "config.json"
+                path.write_text(
+                    json.dumps(
+                        {
+                            "codex": {
+                                "provider": "方舟Coding Plan",
+                                "provider_settings": {
+                                    "方舟Coding Plan": {
+                                        "model": "deepseek-v4-pro",
+                                        "model_reasoning": {
+                                            "deepseek-v4-pro": {
+                                                "reasoning_effort": effort,
+                                                "thinking_enabled": False,
+                                            }
+                                        },
+                                    }
+                                },
+                            }
+                        },
+                        ensure_ascii=False,
+                    ),
+                    encoding="utf-8",
+                )
+                setting = ConfigManager(path).load().codex.provider_settings[
+                    "方舟Coding Plan"
+                ]
+                self.assertEqual(setting.reasoning_effort, "")
+                self.assertEqual(setting.thinking_enabled, expected)
 
     def test_legacy_deepseek_reasoning_effort_is_mapped(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -338,7 +468,11 @@ class CodexConfigTests(unittest.TestCase):
                     "deepseek-v4-pro",
                     "http://127.0.0.1:32100/v1",
                     "DeepSeek V4 Pro",
-                    1_000_000,
+                    1_024_000,
+                    reasoning_options=(),
+                    input_modalities=("text",),
+                    effective_context_window_percent=100,
+                    supports_reasoning_summaries=True,
                 )
             active = config_path.read_text(encoding="utf-8")
             self.assertIn('model_provider = "cc_model_manager"', active)
@@ -348,11 +482,25 @@ class CodexConfigTests(unittest.TestCase):
             self.assertEqual(catalog["models"][0]["slug"], "deepseek-v4-pro")
             self.assertEqual(
                 catalog["models"][0]["context_window"],
-                1_000_000,
+                1_024_000,
             )
             self.assertEqual(
                 catalog["models"][0]["display_name"],
                 "DeepSeek V4 Pro",
+            )
+            self.assertEqual(
+                catalog["models"][0]["supported_reasoning_levels"],
+                [],
+            )
+            self.assertNotIn(
+                "default_reasoning_level",
+                catalog["models"][0],
+            )
+            self.assertFalse(
+                catalog["models"][0]["supports_parallel_tool_calls"],
+            )
+            self.assertTrue(
+                catalog["models"][0]["supports_reasoning_summaries"],
             )
             service.restore()
             self.assertEqual(config_path.read_bytes(), original)

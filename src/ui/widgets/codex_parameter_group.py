@@ -25,6 +25,7 @@ from src.core.constants import (
     CODEX_REASONING_CONTROL_EFFORT,
     CODEX_REASONING_CONTROL_TOGGLE,
     get_codex_context_window,
+    get_codex_reasoning_defaults,
 )
 
 
@@ -106,6 +107,33 @@ class CodexParameterGroup(QGroupBox):
         self.model_combo.addItems(list(defaults["models"]))
         if defaults["default_model"]:
             self.model_combo.setCurrentText(str(defaults["default_model"]))
+        del blocker
+        reasoning = get_codex_reasoning_defaults(
+            provider,
+            self.model_combo.currentText(),
+        )
+        self.apply_reasoning_settings(
+            provider,
+            self.model_combo.currentText(),
+            str(reasoning["default_reasoning_effort"]),
+            bool(reasoning["default_thinking_enabled"]),
+        )
+        visible = provider != CODEX_PROVIDER_OFFICIAL
+        context_visible = visible and self.current_context_window() is not None
+        self.model_label.setVisible(visible)
+        self.model_combo.setVisible(visible)
+        self.context_window_label.setVisible(context_visible)
+        self.context_window_edit.setVisible(context_visible)
+        self._refresh_context_window()
+
+    def apply_reasoning_settings(
+        self,
+        provider: str,
+        model: str,
+        reasoning_effort: str,
+        thinking_enabled: bool,
+    ) -> None:
+        defaults = get_codex_reasoning_defaults(provider, model)
         reasoning_blocker = QSignalBlocker(self.reasoning_combo)
         self.reasoning_combo.clear()
         for effort in defaults["reasoning_options"]:
@@ -117,17 +145,15 @@ class CodexParameterGroup(QGroupBox):
             )
         if defaults["default_reasoning_effort"]:
             self.set_reasoning_effort(
-                str(defaults["default_reasoning_effort"]),
+                reasoning_effort or str(defaults["default_reasoning_effort"]),
             )
         if not defaults["reasoning_options"]:
             self.reasoning_combo.setCurrentText("")
         thinking_blocker = QSignalBlocker(self.thinking_combo)
-        self.set_thinking_enabled(bool(defaults["default_thinking_enabled"]))
+        self.set_thinking_enabled(thinking_enabled)
         del thinking_blocker
         del reasoning_blocker
-        del blocker
         visible = provider != CODEX_PROVIDER_OFFICIAL
-        context_visible = visible and self.current_context_window() is not None
         reasoning_visible = (
             visible
             and defaults["reasoning_control"] == CODEX_REASONING_CONTROL_EFFORT
@@ -136,15 +162,10 @@ class CodexParameterGroup(QGroupBox):
             visible
             and defaults["reasoning_control"] == CODEX_REASONING_CONTROL_TOGGLE
         )
-        self.model_label.setVisible(visible)
-        self.model_combo.setVisible(visible)
-        self.context_window_label.setVisible(context_visible)
-        self.context_window_edit.setVisible(context_visible)
         self.reasoning_label.setVisible(reasoning_visible)
         self.reasoning_combo.setVisible(reasoning_visible)
         self.thinking_label.setVisible(thinking_visible)
         self.thinking_combo.setVisible(thinking_visible)
-        self._refresh_context_window()
 
     def current_reasoning_effort(self) -> str:
         return str(self.reasoning_combo.currentData() or "")
@@ -188,11 +209,12 @@ class CodexParameterGroup(QGroupBox):
         setting = config.provider_settings[config.provider]
         if self.model_combo.findText(setting.model) >= 0:
             self.model_combo.setCurrentText(setting.model)
-        defaults = CODEX_PROVIDER_DEFAULTS[config.provider]
-        if not defaults["reasoning_options"]:
-            setting.reasoning_effort = ""
-        self.set_reasoning_effort(setting.reasoning_effort)
-        self.set_thinking_enabled(setting.thinking_enabled)
+        self.apply_reasoning_settings(
+            config.provider,
+            setting.model,
+            setting.reasoning_effort,
+            setting.thinking_enabled,
+        )
         self.set_launch_target(config.launch_target)
         self.project_path_edit.setText(config.project_path)
 

@@ -34,6 +34,7 @@ from PyQt6.QtWidgets import (
 
 from src.core.config_manager import (
     AppConfig,
+    CodexModelReasoningSettings,
     CodexProviderSettings,
     ConfigManager,
     ProxyConfig,
@@ -44,9 +45,11 @@ from src.core.constants import (
     APP_NAME,
     CODEX_PROVIDER_DEFAULTS,
     CODEX_PROVIDER_OFFICIAL,
+    CODEX_REASONING_CONTROL_EFFORT,
     CODEX_REASONING_CONTROL_TOGGLE,
     PROVIDER_CLAUDE_DEFAULT,
     PROVIDER_CLAUDE_RELAY,
+    get_codex_reasoning_defaults,
 )
 from src.core.logger import setup_logger
 from src.core.process_manager import ProcessManager
@@ -497,7 +500,9 @@ class MainWindow(QMainWindow):
 
         cpg = self.codex_parameter_group
         cpg.provider_combo.currentTextChanged.connect(self._handle_codex_provider_change)
-        cpg.model_combo.currentTextChanged.connect(self._schedule_autosave)
+        cpg.model_combo.currentTextChanged.connect(
+            self._handle_codex_model_change
+        )
         cpg.reasoning_combo.currentTextChanged.connect(self._schedule_autosave)
         cpg.thinking_combo.currentTextChanged.connect(self._schedule_autosave)
         cpg.launch_target_combo.currentIndexChanged.connect(
@@ -619,6 +624,31 @@ class MainWindow(QMainWindow):
         self._sync_parameter_group_layouts()
         self._refresh_status()
         self._sync_codex_target_state()
+        self._schedule_autosave()
+
+    def _handle_codex_model_change(self, model: str) -> None:
+        if self._loading:
+            return
+        provider = self.codex_parameter_group.provider_combo.currentText()
+        setting = self.config.codex.provider_settings[provider]
+        if not CODEX_PROVIDER_DEFAULTS[provider].get("model_reasoning"):
+            setting.model = model
+            self._schedule_autosave()
+            return
+        self._store_codex_reasoning_state(provider, setting, setting.model)
+        setting.model = model
+        self._load_codex_reasoning_state(provider, setting, model)
+        self._loading = True
+        try:
+            self.codex_parameter_group.apply_reasoning_settings(
+                provider,
+                model,
+                setting.reasoning_effort,
+                setting.thinking_enabled,
+            )
+        finally:
+            self._loading = False
+        self._sync_parameter_group_layouts()
         self._schedule_autosave()
 
     def _handle_provider_change(self, provider: str) -> None:
@@ -776,20 +806,9 @@ class MainWindow(QMainWindow):
             CodexProviderSettings(),
         )
         if provider != CODEX_PROVIDER_OFFICIAL:
-            setting.model = self.codex_parameter_group.model_combo.currentText()
-            reasoning_options = CODEX_PROVIDER_DEFAULTS[provider]["reasoning_options"]
-            setting.reasoning_effort = (
-                self.codex_parameter_group.current_reasoning_effort()
-                if reasoning_options
-                else ""
-            )
-            if (
-                CODEX_PROVIDER_DEFAULTS[provider]["reasoning_control"]
-                == CODEX_REASONING_CONTROL_TOGGLE
-            ):
-                setting.thinking_enabled = (
-                    self.codex_parameter_group.current_thinking_enabled()
-                )
+            model = self.codex_parameter_group.model_combo.currentText()
+            setting.model = model
+            self._store_codex_reasoning_state(provider, setting, model)
         proxy_data = self.codex_proxy_group.collect_config_data()
         setting.proxy = ProxyConfig(
             http=ProxyItem(**proxy_data["http"]),
@@ -815,6 +834,48 @@ class MainWindow(QMainWindow):
                 self.config.codex.project_path,
                 *history,
             ][:10]
+
+    def _store_codex_reasoning_state(
+        self,
+        provider: str,
+        setting: CodexProviderSettings,
+        model: str,
+    ) -> None:
+        defaults = get_codex_reasoning_defaults(provider, model)
+        control = defaults["reasoning_control"]
+        setting.reasoning_effort = (
+            self.codex_parameter_group.current_reasoning_effort()
+            if control == CODEX_REASONING_CONTROL_EFFORT
+            else ""
+        )
+        if control == CODEX_REASONING_CONTROL_TOGGLE:
+            setting.thinking_enabled = (
+                self.codex_parameter_group.current_thinking_enabled()
+            )
+        if model in CODEX_PROVIDER_DEFAULTS[provider].get("model_reasoning", {}):
+            setting.model_reasoning[model] = CodexModelReasoningSettings(
+                reasoning_effort=setting.reasoning_effort,
+                thinking_enabled=setting.thinking_enabled,
+            )
+
+    @staticmethod
+    def _load_codex_reasoning_state(
+        provider: str,
+        setting: CodexProviderSettings,
+        model: str,
+    ) -> None:
+        defaults = get_codex_reasoning_defaults(provider, model)
+        saved = setting.model_reasoning.get(model)
+        setting.reasoning_effort = (
+            saved.reasoning_effort
+            if saved is not None
+            else str(defaults["default_reasoning_effort"])
+        )
+        setting.thinking_enabled = (
+            saved.thinking_enabled
+            if saved is not None
+            else bool(defaults["default_thinking_enabled"])
+        )
 
     def copy_logs_to_clipboard(self) -> None:
         QApplication.clipboard().setText(self.log_console.toPlainText())
@@ -874,8 +935,14 @@ class MainWindow(QMainWindow):
         current = self.config.codex.provider_settings[provider]
         defaults = CODEX_PROVIDER_DEFAULTS[provider]
         current.model = str(defaults["default_model"])
-        current.reasoning_effort = str(defaults["default_reasoning_effort"])
-        current.thinking_enabled = bool(defaults["default_thinking_enabled"])
+        current.model_reasoning = {}
+        for model in defaults.get("model_reasoning", {}):
+            reasoning = get_codex_reasoning_defaults(provider, model)
+            current.model_reasoning[model] = CodexModelReasoningSettings(
+                reasoning_effort=str(reasoning["default_reasoning_effort"]),
+                thinking_enabled=bool(reasoning["default_thinking_enabled"]),
+            )
+        self._load_codex_reasoning_state(provider, current, current.model)
         current.proxies = {
             target: ProxyConfig()
             for target in current.proxies
