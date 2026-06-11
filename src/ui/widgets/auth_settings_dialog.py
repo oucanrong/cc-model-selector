@@ -7,6 +7,7 @@ import webbrowser
 
 from PyQt6.QtGui import QColor, QFocusEvent, QPalette
 from PyQt6.QtWidgets import (
+    QApplication,
     QDialog,
     QFormLayout,
     QHBoxLayout,
@@ -103,8 +104,20 @@ class AuthSettingsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("鉴权设置")
         self.setModal(True)
-        self.resize(860, 760)
-        self.setMinimumSize(820, 700)
+        screen = None
+        if parent:
+            screen = parent.screen()
+        if not screen:
+            screen = QApplication.primaryScreen()
+
+        if screen:
+            avail = screen.availableGeometry()
+            w = min(860, int(avail.width() * 0.75))
+            h = min(760, int(avail.height() * 0.85))
+        else:
+            w, h = 860, 760
+        self.resize(w, h)
+        self.setMinimumSize(min(w, 820), min(h, 700))
         self._claude_fields: dict[str, tuple[QLineEdit, QLineEdit]] = {}
         self._codex_fields: dict[str, tuple[QLineEdit, QLineEdit]] = {}
 

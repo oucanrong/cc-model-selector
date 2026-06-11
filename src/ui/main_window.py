@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QStatusBar,
     QTabWidget,
     QVBoxLayout,
@@ -245,8 +246,15 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle(APP_NAME)
-        self.resize(760, 900)
-        self.setMinimumSize(760, 600)
+        screen = QApplication.primaryScreen()
+        if screen:
+            avail = screen.availableGeometry()
+            w = min(760, int(avail.width() * 0.65))
+            h = min(900, int(avail.height() * 0.90))
+        else:
+            w, h = 760, 900
+        self.resize(w, h)
+        self.setMinimumSize(560, 500)
 
         self._apply_fonts()
 
@@ -417,8 +425,16 @@ class MainWindow(QMainWindow):
         codex_root.addLayout(codex_buttons)
         codex_root.setStretchFactor(self.codex_log_console, 1)
 
-        self.product_tabs.addTab(claude_page, "Claude Code")
-        self.product_tabs.addTab(codex_page, "Codex")
+        claude_scroll = QScrollArea()
+        claude_scroll.setWidgetResizable(True)
+        claude_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        claude_scroll.setWidget(claude_page)
+        codex_scroll = QScrollArea()
+        codex_scroll.setWidgetResizable(True)
+        codex_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        codex_scroll.setWidget(codex_page)
+        self.product_tabs.addTab(claude_scroll, "Claude Code")
+        self.product_tabs.addTab(codex_scroll, "Codex")
         root.addWidget(self.product_tabs, 1)
 
         self.setCentralWidget(central)
